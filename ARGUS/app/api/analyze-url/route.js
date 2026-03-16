@@ -18,6 +18,65 @@ const SUSPICIOUS_KEYWORDS = [
 ];
 const MALICIOUS_TLDS = ['.tk','.ml','.ga','.cf','.gq','.xyz','.top','.click','.download','.link'];
 
+function sanitizeSignals(signals) {
+  const seen = new Set();
+  return (Array.isArray(signals) ? signals : [])
+    .map(s => String(s || '').trim())
+    .filter(Boolean)
+    .filter(s => {
+      const key = s.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 6)
+    .map(s => s.slice(0, 120));
+}
+
+function scoreToConfidence(score, verdict) {
+  const normalized = Math.max(0, Math.min(100, Number(score || 0))) / 100;
+  if (['MALICIOUS', 'HIGH_RISK'].includes(verdict)) return Number(normalized.toFixed(2));
+  if (verdict === 'CLEAR') return Number((1 - normalized).toFixed(2));
+  const distanceFromCenter = Math.abs(normalized - 0.5) * 2;
+  return Number(Math.max(0.5, distanceFromCenter).toFixed(2));
+}
+
+function buildExplainability(urlStr, verdict, score, reason, modelSignals = [], fallbackLabel = null) {
+  const lexicalReason = getLexicalReason(urlStr, score);
+  const lexicalSignals = lexicalReason
+    .split('.')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .filter(s => s.toLowerCase() !== 'url appears safe')
+    .map(s => `Lexical: ${s}`);
+
+  const signals = sanitizeSignals([
+    ...modelSignals,
+    ...lexicalSignals,
+    fallbackLabel ? `Source: ${fallbackLabel}` : null,
+  ]);
+
+  const safeReason = String(reason || '').trim();
+  const explanation = safeReason
+    ? `${safeReason} Evidence: ${signals.slice(0, 3).join('; ') || 'No high-risk indicators.'}`
+    : `Automated URL analysis found ${signals.length ? 'the following indicators: ' + signals.slice(0, 3).join('; ') : 'no strong malicious indicators'}.`;
+
+  const severity = computeSeverity(score);
+  const action = computeAction(verdict, severity);
+  const confidence = scoreToConfidence(score, verdict);
+
+  return {
+    verdict,
+    score,
+    reason: safeReason || lexicalReason,
+    signals,
+    explanation: explanation.slice(0, 420),
+    severity,
+    action,
+    confidence,
+  };
+}
+
 function calculateLexicalScore(urlStr) {
   try {
     const u = new URL(urlStr);
@@ -132,7 +191,7 @@ function computeAction(verdict, severity) {
 }
 
 // Log URL analysis to database
-async function logUrlAnalysis(url, verdict, score, reason, signals) {
+async function logUrlAnalysis(url, verdict, score, reason, signals, explanation, action, severity, confidence) {
   try {
     await connectDB();
     
@@ -141,9 +200,6 @@ async function logUrlAnalysis(url, verdict, score, reason, signals) {
     try {
       domain = new URL(url).hostname;
     } catch {}
-    
-    const severity = computeSeverity(score);
-    const action = computeAction(verdict, severity);
     
     await SecurityAnalytics.create({
       userId: null, // Will be set when user auth is available
@@ -156,7 +212,9 @@ async function logUrlAnalysis(url, verdict, score, reason, signals) {
       urlDomain: domain,
       reason,
       signals,
+      explanation,
       action,
+      confidence,
       sessionId: `url-${Date.now()}`
     });
   } catch (error) {
@@ -210,12 +268,15 @@ export async function POST(request) {
       'localhost', '127.0.0.1',
     ];
     if (ALWAYS_SAFE.some(safe => hostname === safe || hostname.endsWith('.' + safe))) {
-      return NextResponse.json({
-        verdict: 'CLEAR',
-        score: 0,
-        reason: 'Trusted domain on allowlist',
-        signals: [],
-      }, { headers: corsHeaders });
+      const explainable = buildExplainability(
+        url,
+        'CLEAR',
+        0,
+        'Trusted domain on allowlist',
+        ['Allowlist match on trusted domain'],
+        'allowlist'
+      );
+      return NextResponse.json({ ...explainable, url }, { headers: corsHeaders });
     }
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -238,14 +299,16 @@ export async function POST(request) {
       const lexScore = calculateLexicalScore(url);
       const lexVerdict = lexScore >= 70 ? 'HIGH_RISK' : lexScore >= 40 ? 'SUSPICIOUS' : 'CLEAR';
       const lexReason = getLexicalReason(url, lexScore);
-      
-      return NextResponse.json({
-        verdict: lexVerdict,
-        score: lexScore,
-        reason: lexReason,
-        signals: ['Lexical analysis only (AI unavailable)'],
+      const explainable = buildExplainability(
         url,
-      }, { headers: corsHeaders });
+        lexVerdict,
+        lexScore,
+        lexReason,
+        ['Gemini unavailable, used deterministic lexical analysis'],
+        'lexical-fallback'
+      );
+
+      return NextResponse.json({ ...explainable, url }, { headers: corsHeaders });
     }
 
     const text   = result.response.text().trim();
@@ -259,13 +322,17 @@ export async function POST(request) {
     } catch {
       console.error('[ARGUS /api/analyze-url] Failed to parse Gemini response:', text);
       // Fallback: return CLEAR to avoid false blocks
-      return NextResponse.json({
-        verdict: 'CLEAR',
-        score: 0,
-        reason: 'Analysis inconclusive',
-        signals: [],
+      const safeScore = calculateLexicalScore(url);
+      const safeVerdict = safeScore >= 70 ? 'HIGH_RISK' : safeScore >= 40 ? 'SUSPICIOUS' : 'CLEAR';
+      const explainable = buildExplainability(
         url,
-      }, { headers: corsHeaders });
+        safeVerdict,
+        safeScore,
+        'Model response was invalid; fallback analysis used.',
+        ['Gemini JSON parse failed'],
+        'parse-fallback'
+      );
+      return NextResponse.json({ ...explainable, url }, { headers: corsHeaders });
     }
 
     // Sanitize output fields
@@ -273,24 +340,38 @@ export async function POST(request) {
     const verdict = verdictOptions.includes(parsed.verdict) ? parsed.verdict : 'CLEAR';
     const score   = typeof parsed.score === 'number' ? Math.max(0, Math.min(100, Math.round(parsed.score))) : 0;
     const reason  = typeof parsed.reason === 'string' ? parsed.reason.slice(0, 300) : '';
-    const signals = Array.isArray(parsed.signals) ? parsed.signals.slice(0, 5).map(s => String(s).slice(0, 100)) : [];
+    const signals = Array.isArray(parsed.signals) ? parsed.signals : [];
+    const explainable = buildExplainability(url, verdict, score, reason, signals, 'gemini+lexical');
 
     // Log to database (async, don't block response)
-    logUrlAnalysis(url, verdict, score, reason, signals).catch(err => 
+    logUrlAnalysis(
+      url,
+      explainable.verdict,
+      explainable.score,
+      explainable.reason,
+      explainable.signals,
+      explainable.explanation,
+      explainable.action,
+      explainable.severity,
+      explainable.confidence
+    ).catch(err => 
       console.error('[ARGUS] Failed to log URL analysis:', err.message)
     );
 
-    return NextResponse.json({ verdict, score, reason, signals, url }, { headers: corsHeaders });
+    return NextResponse.json({ ...explainable, url }, { headers: corsHeaders });
 
   } catch (error) {
     console.error('[ARGUS /api/analyze-url] Error:', error);
     // On error, fail open (CLEAR) to avoid blocking legitimate sites
-    return NextResponse.json({
-      verdict: 'CLEAR',
-      score:   0,
-      reason:  'Analysis service unavailable',
-      signals: [],
-    }, { status: 200, headers: corsHeaders });
+    const explainable = buildExplainability(
+      'http://unknown.local',
+      'CLEAR',
+      0,
+      'Analysis service unavailable',
+      ['System fallback activated'],
+      'error-fallback'
+    );
+    return NextResponse.json({ ...explainable }, { status: 200, headers: corsHeaders });
   }
 }
 

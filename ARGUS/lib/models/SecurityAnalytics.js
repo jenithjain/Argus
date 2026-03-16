@@ -98,6 +98,14 @@ const SecurityAnalyticsSchema = new mongoose.Schema({
   explanation: {
     type: String
   },
+
+  // Confidence score for the current verdict (0-1)
+  confidence: {
+    type: Number,
+    min: 0,
+    max: 1,
+    default: 0
+  },
   
   // Recommended action
   action: {

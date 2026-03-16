@@ -809,6 +809,11 @@ export default function Dashboard() {
                                   {detection.detectionType === 'deepfake' && `Frame ${detection.frameCount || 0} - ${detection.verdict || 'UNCERTAIN'}`}
                                 </p>
                                 <p className="text-xs text-muted-foreground">{detection.reason}</p>
+                                {detection.explanation && (
+                                  <p className="text-xs text-foreground/80 mt-1 line-clamp-2">
+                                    {detection.explanation}
+                                  </p>
+                                )}
                                 {detection.signals && detection.signals.length > 0 && (
                                   <div className="mt-2 flex flex-wrap gap-1">
                                     {detection.signals.slice(0, 3).map((signal, i) => (
@@ -817,6 +822,11 @@ export default function Dashboard() {
                                       </span>
                                     ))}
                                   </div>
+                                )}
+                                {detection.action && (
+                                  <p className="text-xs mt-2 text-amber-500">
+                                    Recommended action: {detection.action}
+                                  </p>
                                 )}
                               </div>
                               <div className="text-right ml-4">
@@ -829,6 +839,11 @@ export default function Dashboard() {
                                   {detection.score}
                                 </div>
                                 <div className="text-xs text-muted-foreground">Risk Score</div>
+                                {typeof detection.confidence === 'number' && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Confidence {(detection.confidence * 100).toFixed(0)}%
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
