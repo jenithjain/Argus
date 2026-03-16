@@ -13,18 +13,18 @@ import {
 } from "lucide-react";
 
 const SUGGESTED_PROMPTS = [
-  "Help me track character arcs across my screenplay",
-  "Check for timeline inconsistencies in chapters 1-5",
-  "Summarize Sarah's character development",
-  "Find all scenes where Marcus and Elena interact",
-  "Suggest plot ideas to resolve the mystery thread"
+  "Why did ARGUS flag this URL as a phishing risk?",
+  "Explain the threat score for my last scan",
+  "What defense module is active right now and why?",
+  "Show me all high-risk threats detected this week",
+  "How do I mitigate the malware risk on this download?"
 ];
 
 const DUMMY_MESSAGES = [
   {
     id: 1,
     role: "assistant",
-    content: "Hello! I'm ScriptForge AI, your intelligent writing assistant. I can help you maintain narrative continuity, track characters and timelines, detect inconsistencies, and provide creative suggestions for your screenplay or story. What would you like me to help with?",
+    content: "Hello! I'm ARGUS AI, your intelligent cybersecurity guardian. I can help you understand threat detections, explain risk scores, review active defense modules, and provide plain-English mitigation recommendations. What would you like to know?",
     timestamp: "07:21 PM"
   }
 ];
@@ -61,7 +61,7 @@ export default function Assistant() {
       const aiMessage = {
         id: messages.length + 2,
         role: "assistant",
-        content: "Analyzing your manuscript... ✓\n\nStory Context: Loaded 15 chapters\nCharacter Tracking: 12 main characters identified\nTimeline Validation: No inconsistencies found\nPlot Threads: 5 active, 2 resolved\n\nI've mapped Sarah's character arc from Chapter 1-15. Her transformation from skeptic to believer is well-paced. Suggested enhancement: Add a scene in Chapter 10 showing her internal conflict. Shall I provide detailed suggestions?",
+        content: "Analyzing browser context... ✓\n\nActive Module: Phishing Detector\nThreats Scanned: 1,247 this session\nRisk Score: Low (12/100)\nModules Active: 5/5\n\nNo active threats detected in your current session. Your last flagged event was a suspicious redirect on a login page — confidence 94%, classified as credential harvesting attempt. Mitigation applied: page blocked, user warned. Want a full breakdown of recent detections?",
         timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, aiMessage]);
@@ -103,12 +103,12 @@ export default function Assistant() {
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground ivy-font">ScriptForge AI</h1>
-              <p className="text-sm text-emerald-500 ivy-font">Smart Script Writing Assistant</p>
+              <h1 className="text-3xl font-bold text-foreground ivy-font">ARGUS AI</h1>
+              <p className="text-sm text-emerald-500 ivy-font">Adaptive Risk & Generative Understanding System</p>
             </div>
           </div>
           <p className="text-muted-foreground ivy-font max-w-2xl mx-auto">
-            Intelligent writing assistant with comprehensive story awareness and narrative continuity tracking
+            Intelligent security assistant with full browser context awareness — explains threats, risk scores, and mitigation steps in plain English
           </p>
         </div>
 
@@ -206,7 +206,7 @@ export default function Assistant() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask about your story, check character consistency, or get creative suggestions..."
+                    placeholder="Ask about a threat, request a risk explanation, or get mitigation advice..."
                     className="resize-none min-h-[60px] max-h-[120px] pr-12 ivy-font bg-background/80 border-border/60 focus:border-emerald-500/50 focus:ring-emerald-500/20 transition-all"
                     rows={1}
                   />
@@ -235,10 +235,10 @@ export default function Assistant() {
         {/* Quick Stats */}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
           {[
-            { icon: TrendingUp, label: "Sales Forecast", value: "Active" },
-            { icon: BarChart3, label: "RFM Segmentation", value: "Ready" },
-            { icon: Sparkles, label: "Campaign Agent", value: "Live" },
-            { icon: Target, label: "Workflows", value: "Updated" }
+            { icon: TrendingUp, label: "Threat Feed", value: "Active" },
+            { icon: BarChart3, label: "Risk Scoring", value: "Ready" },
+            { icon: Sparkles, label: "Defense Agent", value: "Live" },
+            { icon: Target, label: "Scan Modules", value: "5/5" }
           ].map((stat, idx) => (
             <Card
               key={idx}

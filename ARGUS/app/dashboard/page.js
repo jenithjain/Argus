@@ -18,60 +18,60 @@ import {
   PenTool, Target, Network, Shield
 } from "lucide-react";
 
-// Story Progress Data
+// Threat Detection Data
 const progressData = [
-  { chapter: "Ch 1", wordCount: 4500, targetCount: 5000, completion: 90 },
-  { chapter: "Ch 2", wordCount: 5200, targetCount: 5000, completion: 100 },
-  { chapter: "Ch 3", wordCount: 4800, targetCount: 5000, completion: 96 },
-  { chapter: "Ch 4", wordCount: 6100, targetCount: 5000, completion: 100 },
-  { chapter: "Ch 5", wordCount: 5500, targetCount: 5000, completion: 100 },
-  { chapter: "Ch 6", wordCount: 6700, targetCount: 5000, completion: 100 },
-  { chapter: "Ch 7", wordCount: 7200, targetCount: 5000, completion: 100 },
-  { chapter: "Ch 8", wordCount: 6900, targetCount: 5000, completion: 100 },
-  { chapter: "Ch 9", wordCount: 3200, targetCount: 5000, completion: 64 },
-  { chapter: "Ch 10", wordCount: 0, targetCount: 5000, completion: 0 },
-  { chapter: "Ch 11", wordCount: 0, targetCount: 5000, completion: 0 },
-  { chapter: "Ch 12", wordCount: 0, targetCount: 5000, completion: 0 },
+  { chapter: "S1", wordCount: 4500, targetCount: 5000, completion: 90 },
+  { chapter: "S2", wordCount: 5200, targetCount: 5000, completion: 100 },
+  { chapter: "S3", wordCount: 4800, targetCount: 5000, completion: 96 },
+  { chapter: "S4", wordCount: 6100, targetCount: 5000, completion: 100 },
+  { chapter: "S5", wordCount: 5500, targetCount: 5000, completion: 100 },
+  { chapter: "S6", wordCount: 6700, targetCount: 5000, completion: 100 },
+  { chapter: "S7", wordCount: 7200, targetCount: 5000, completion: 100 },
+  { chapter: "S8", wordCount: 6900, targetCount: 5000, completion: 100 },
+  { chapter: "S9", wordCount: 3200, targetCount: 5000, completion: 64 },
+  { chapter: "S10", wordCount: 0, targetCount: 5000, completion: 0 },
+  { chapter: "S11", wordCount: 0, targetCount: 5000, completion: 0 },
+  { chapter: "S12", wordCount: 0, targetCount: 5000, completion: 0 },
 ];
 
 const characterActivityData = [
-  { name: "Sarah", appearances: 28, dialogueLines: 284, arcProgress: 85 },
-  { name: "Marcus", appearances: 22, dialogueLines: 223, arcProgress: 72 },
-  { name: "Elena", appearances: 18, dialogueLines: 182, arcProgress: 68 },
-  { name: "Detective Ray", appearances: 15, dialogueLines: 151, arcProgress: 55 },
+  { name: "Phishing", appearances: 28, dialogueLines: 284, arcProgress: 85 },
+  { name: "Malware", appearances: 22, dialogueLines: 223, arcProgress: 72 },
+  { name: "Social Eng.", appearances: 18, dialogueLines: 182, arcProgress: 68 },
+  { name: "Data Exfil.", appearances: 15, dialogueLines: 151, arcProgress: 55 },
 ];
 
 const storyElementsData = [
-  { id: 1, type: "Plot Thread", element: "The Mystery of the Missing Journal", status: "Active", chapters: "1-9" },
-  { id: 2, type: "Plot Thread", element: "Sarah's Transformation Arc", status: "Active", chapters: "1-9" },
-  { id: 3, type: "Subplot", element: "Marcus and Elena's Romance", status: "Active", chapters: "3-9" },
-  { id: 4, type: "Plot Thread", element: "The Corporate Conspiracy", status: "Resolved", chapters: "1-7" },
-  { id: 5, type: "Subplot", element: "Detective Ray's Investigation", status: "Active", chapters: "2-9" },
-  { id: 6, type: "Mystery", element: "Who sent the anonymous letter?", status: "Active", chapters: "5-9" },
-  { id: 7, type: "Character", element: "Sarah's mentor relationship", status: "Active", chapters: "2-9" },
-  { id: 8, type: "Location", element: "The Old Library recurring setting", status: "Active", chapters: "1-9" },
+  { id: 1, type: "Phishing", element: "Credential harvesting on login page", status: "Active", chapters: "Session 1-9" },
+  { id: 2, type: "Malware", element: "Suspicious download redirect", status: "Active", chapters: "Session 1-9" },
+  { id: 3, type: "Social Engineering", element: "Fake tech support popup", status: "Active", chapters: "Session 3-9" },
+  { id: 4, type: "Phishing", element: "Spoofed banking domain", status: "Resolved", chapters: "Session 1-7" },
+  { id: 5, type: "Data Exfiltration", element: "Unauthorized form submission", status: "Active", chapters: "Session 2-9" },
+  { id: 6, type: "Malware", element: "Drive-by download attempt", status: "Active", chapters: "Session 5-9" },
+  { id: 7, type: "Credential Theft", element: "Password field on HTTP page", status: "Active", chapters: "Session 2-9" },
+  { id: 8, type: "Phishing", element: "Lookalike domain detected", status: "Active", chapters: "Session 1-9" },
 ];
 
 const timelineData = [
-  { chapter: "Ch 1", events: 12, characters: 4 },
-  { chapter: "Ch 2", events: 13, characters: 5 },
-  { chapter: "Ch 3", events: 14, characters: 5 },
-  { chapter: "Ch 4", events: 14, characters: 6 },
-  { chapter: "Ch 5", events: 15, characters: 6 },
-  { chapter: "Ch 6", events: 14, characters: 7 },
-  { chapter: "Ch 7", events: 16, characters: 7 },
-  { chapter: "Ch 8", events: 17, characters: 8 },
-  { chapter: "Ch 9", events: 16, characters: 8 },
-  { chapter: "Ch 10", events: 0, characters: 0 },
+  { chapter: "S1", events: 12, characters: 4 },
+  { chapter: "S2", events: 13, characters: 5 },
+  { chapter: "S3", events: 14, characters: 5 },
+  { chapter: "S4", events: 14, characters: 6 },
+  { chapter: "S5", events: 15, characters: 6 },
+  { chapter: "S6", events: 14, characters: 7 },
+  { chapter: "S7", events: 16, characters: 7 },
+  { chapter: "S8", events: 17, characters: 8 },
+  { chapter: "S9", events: 16, characters: 8 },
+  { chapter: "S10", events: 0, characters: 0 },
 ];
 
 const storyHealthData = [
-  { metric: "Character Consistency", value: 95, fullMark: 100 },
-  { metric: "Timeline Coherence", value: 88, fullMark: 100 },
-  { metric: "Plot Thread Management", value: 92, fullMark: 100 },
-  { metric: "Dialogue Quality", value: 85, fullMark: 100 },
-  { metric: "Pacing", value: 78, fullMark: 100 },
-  { metric: "Continuity Score", value: 91, fullMark: 100 },
+  { metric: "Phishing Detection", value: 95, fullMark: 100 },
+  { metric: "Malware Coverage", value: 88, fullMark: 100 },
+  { metric: "Module Response Time", value: 92, fullMark: 100 },
+  { metric: "False Positive Rate", value: 85, fullMark: 100 },
+  { metric: "Context Accuracy", value: 78, fullMark: 100 },
+  { metric: "Defense Score", value: 91, fullMark: 100 },
 ];
 
 const chapterStatsData = [
@@ -169,19 +169,19 @@ export default function Dashboard() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-4xl font-bold text-foreground ivy-font mb-2">
-              Story Writing Dashboard
+              Security Operations Dashboard
             </h1>
             <p className="text-muted-foreground ivy-font">
-              Track your narrative progress, character arcs, and story continuity
+              Monitor threat detections, active defense modules, and your overall security posture
             </p>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="px-3 py-1 ivy-font">
-              Chapter 9 - In Progress
+              Module 5 - Active
             </Badge>
             <Button className="bg-emerald-500 hover:bg-emerald-600 text-white ivy-font">
               <PenTool className="h-4 w-4 mr-2" />
-              Continue Writing
+              Open Extension
             </Button>
           </div>
         </div>
@@ -189,28 +189,28 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title="Total Word Count"
-            value="49,900"
+            title="Threats Detected"
+            value="1,247"
             change="+15.2%"
             icon={BookOpen}
             trend="up"
           />
           <StatCard
-            title="Characters Tracked"
-            value="12"
-            change="+3"
+            title="Modules Active"
+            value="5"
+            change="+1"
             icon={Users}
             trend="up"
           />
           <StatCard
-            title="Active Plot Threads"
-            value="5"
-            change="+1"
+            title="Active Scans"
+            value="18"
+            change="+3"
             icon={GitBranch}
             trend="up"
           />
           <StatCard
-            title="Continuity Score"
+            title="Defense Score"
             value="91%"
             change="+2.4%"
             icon={Shield}
@@ -221,12 +221,12 @@ export default function Dashboard() {
         {/* Main Charts */}
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="bg-muted/50 backdrop-blur-sm">
-            <TabsTrigger value="overview" className="ivy-font">Writing Progress</TabsTrigger>
-            <TabsTrigger value="analytics" className="ivy-font">Character Activity</TabsTrigger>
-            <TabsTrigger value="performance" className="ivy-font">Story Health</TabsTrigger>
-            <TabsTrigger value="cashflow" className="ivy-font">Timeline Events</TabsTrigger>
-            <TabsTrigger value="investments" className="ivy-font">Chapter Stats</TabsTrigger>
-            <TabsTrigger value="transactions" className="ivy-font">Story Elements</TabsTrigger>
+            <TabsTrigger value="overview" className="ivy-font">Threat Overview</TabsTrigger>
+            <TabsTrigger value="analytics" className="ivy-font">Module Activity</TabsTrigger>
+            <TabsTrigger value="performance" className="ivy-font">Defense Health</TabsTrigger>
+            <TabsTrigger value="cashflow" className="ivy-font">Scan Timeline</TabsTrigger>
+            <TabsTrigger value="investments" className="ivy-font">Detection Stats</TabsTrigger>
+            <TabsTrigger value="transactions" className="ivy-font">Threat Incidents</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -234,9 +234,9 @@ export default function Dashboard() {
             <div className="grid gap-4 md:grid-cols-7">
               <Card className="col-span-4 border-border/40 backdrop-blur-sm bg-card/50">
                 <CardHeader>
-                  <CardTitle className="ivy-font">Chapter Progress</CardTitle>
+                  <CardTitle className="ivy-font">Threat Detection Overview</CardTitle>
                   <CardDescription className="ivy-font">
-                    Word count progress across chapters with target completion
+                    Threats detected per scan session with target thresholds
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
@@ -278,7 +278,7 @@ export default function Dashboard() {
                         fillOpacity={1} 
                         fill="url(#colorActual)"
                         strokeWidth={2}
-                        name="Word Count"
+                        name="Threats Detected"
                       />
                       <Area 
                         type="monotone" 
@@ -288,7 +288,7 @@ export default function Dashboard() {
                         fill="url(#colorForecast)"
                         strokeWidth={2}
                         strokeDasharray="5 5"
-                        name="Target Count"
+                        name="Target Threshold"
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -297,9 +297,9 @@ export default function Dashboard() {
 
               <Card className="col-span-3 border-border/40 backdrop-blur-sm bg-card/50">
                 <CardHeader>
-                  <CardTitle className="ivy-font">Character Activity</CardTitle>
+                  <CardTitle className="ivy-font">Module Activity</CardTitle>
                   <CardDescription className="ivy-font">
-                    Distribution by character prominence
+                    Distribution by defense module usage
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -352,9 +352,9 @@ export default function Dashboard() {
             <div className="grid gap-4 md:grid-cols-2">
               <Card className="border-border/40 backdrop-blur-sm bg-card/50">
                 <CardHeader>
-                  <CardTitle className="ivy-font">Chapter Trends</CardTitle>
+                  <CardTitle className="ivy-font">Detection Trends</CardTitle>
                   <CardDescription className="ivy-font">
-                    Progress across the manuscript
+                    Threat detections across scan sessions
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -393,9 +393,9 @@ export default function Dashboard() {
 
               <Card className="border-border/40 backdrop-blur-sm bg-card/50">
                 <CardHeader>
-                  <CardTitle className="ivy-font">Timeline Events</CardTitle>
+                  <CardTitle className="ivy-font">Scan Events</CardTitle>
                   <CardDescription className="ivy-font">
-                    Events and characters per chapter
+                    Scan events and modules triggered per session
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -432,9 +432,9 @@ export default function Dashboard() {
           <TabsContent value="performance" className="space-y-4">
             <Card className="border-border/40 backdrop-blur-sm bg-card/50 hover:shadow-lg transition-all duration-300">
               <CardHeader>
-                <CardTitle className="ivy-font">Story Health Metrics</CardTitle>
+                <CardTitle className="ivy-font">Defense Health Metrics</CardTitle>
                 <CardDescription className="ivy-font">
-                  Comprehensive view of story quality across key areas
+                  Comprehensive view of security posture across key defense areas
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -488,9 +488,9 @@ export default function Dashboard() {
           <TabsContent value="cashflow" className="space-y-4">
             <Card className="border-border/40 backdrop-blur-sm bg-card/50 hover:shadow-lg transition-all duration-300">
               <CardHeader>
-                <CardTitle className="ivy-font">Writing Activity by Quarter</CardTitle>
+                <CardTitle className="ivy-font">Detection Activity by Quarter</CardTitle>
                 <CardDescription className="ivy-font">
-                  Track words written, targets, and revision rounds
+                  Track threats blocked, scans run, and incident response rounds
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -514,30 +514,30 @@ export default function Dashboard() {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="wordsWritten" fill={chartColors.revenue} radius={[8, 8, 0, 0]} name="Words Written" />
-                    <Bar dataKey="targetWords" fill={chartColors.expenses} radius={[8, 8, 0, 0]} name="Target Words" />
+                    <Bar dataKey="wordsWritten" fill={chartColors.revenue} radius={[8, 8, 0, 0]} name="Threats Blocked" />
+                    <Bar dataKey="targetWords" fill={chartColors.expenses} radius={[8, 8, 0, 0]} name="Target Threshold" />
                     <Line 
                       type="monotone" 
                       dataKey="revisions" 
                       stroke={chartColors.profit} 
                       strokeWidth={3}
-                      name="Revisions"
+                      name="Incidents Resolved"
                       dot={{ fill: chartColors.profit, r: 6 }}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
                 <div className="mt-6 grid grid-cols-3 gap-4">
                   <div className="p-4 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400 ivy-font mb-1">Total Inflow</p>
-                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 ivy-font">$915K</p>
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400 ivy-font mb-1">Threats Blocked</p>
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 ivy-font">915</p>
                   </div>
                   <div className="p-4 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-sm text-red-600 dark:text-red-400 ivy-font mb-1">Total Outflow</p>
-                    <p className="text-2xl font-bold text-red-600 dark:text-red-400 ivy-font">$580K</p>
+                    <p className="text-sm text-red-600 dark:text-red-400 ivy-font mb-1">Scans Run</p>
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-400 ivy-font">580</p>
                   </div>
                   <div className="p-4 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-sm text-blue-600 dark:text-blue-400 ivy-font mb-1">Net Position</p>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 ivy-font">$335K</p>
+                    <p className="text-sm text-blue-600 dark:text-blue-400 ivy-font mb-1">Risk Score</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 ivy-font">Low</p>
                   </div>
                 </div>
               </CardContent>
@@ -593,9 +593,9 @@ export default function Dashboard() {
 
             <Card className="border-border/40 backdrop-blur-sm bg-card/50">
               <CardHeader>
-                <CardTitle className="ivy-font">Chapter Completion Over Time</CardTitle>
+                <CardTitle className="ivy-font">Detection Stats Over Time</CardTitle>
                 <CardDescription className="ivy-font">
-                  Your word count vs target over time
+                  Cumulative threats detected vs target thresholds
                 </CardDescription>
               </CardHeader>
               <CardContent>

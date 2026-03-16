@@ -87,25 +87,25 @@ export default function Home() {
             <div className="mb-4 sm:mb-6 flex items-center gap-3">
               <img
                 src="/chain-forecast.svg"
-                alt="ScriptForge"
+                alt="ARGUS"
                 className="h-12 sm:h-16 w-auto dark:invert"
               />
               <div className="leading-tight">
-                <div className="text-lg sm:text-2xl font-semibold text-slate-900 dark:text-white">ScriptForge</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">Smart Script Writing Assistant</div>
+                <div className="text-lg sm:text-2xl font-semibold text-slate-900 dark:text-white">ARGUS</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Adaptive Risk & Generative Understanding System</div>
               </div>
             </div>
             <span className="mb-3 sm:mb-4 inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/20 backdrop-blur-sm px-2.5 sm:px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 dark:bg-emerald-500/10">
-              AI-Powered Intelligent Script Writing Assistant
+              AI-Powered Context-Aware Cybersecurity Extension
             </span>
             <h1 className="mb-3 sm:mb-4 text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white lg:text-5xl xl:text-6xl">
-              Write scripts with
+              Browse with
               <span className="ml-2 bg-linear-to-r from-emerald-500 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
-                AI precision
+                AI-powered protection
               </span>
             </h1>
             <p className="mb-6 sm:mb-8 max-w-xl text-base sm:text-lg leading-relaxed text-slate-700 dark:text-slate-300">
-              Maintain perfect narrative continuity across long-form scripts, screenplays, and stories. Track characters, timelines, and plot threads with intelligent AI assistance that understands your creative vision.
+              ARGUS watches your browser context — the URL, the active tab, your actions — and silently activates the right cybersecurity defense module. When a threat is found, it explains why, with evidence, a confidence score, and a plain-English mitigation recommendation.
             </p>
             <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
               <a
@@ -132,8 +132,8 @@ export default function Home() {
                   <Brain className="h-5 w-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <p className="text-white font-semibold text-sm ivy-font">Story Intelligence</p>
-                  <p className="text-white/80 text-xs ivy-font">247 Entities Tracked</p>
+                  <p className="text-white font-semibold text-sm ivy-font">Threat Intelligence</p>
+                  <p className="text-white/80 text-xs ivy-font">247 Threats Blocked</p>
                 </div>
               </div>
             </div>
@@ -145,8 +145,8 @@ export default function Home() {
                   <Sparkles className="h-5 w-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <p className="text-white font-semibold text-sm ivy-font">Continuity Check</p>
-                  <p className="text-white/80 text-xs ivy-font">100% Consistency</p>
+                  <p className="text-white font-semibold text-sm ivy-font">Active Defense</p>
+                  <p className="text-white/80 text-xs ivy-font">100% Context-Aware</p>
                 </div>
               </div>
             </div>
@@ -177,16 +177,16 @@ export default function Home() {
           {/* Section Header */}
           <div className="text-center mb-12 sm:mb-16">
             <Badge className="mb-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20">
-              Intelligent Writing Platform
+              Intelligent Cybersecurity Platform
             </Badge>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">
               Everything you need for
               <span className="block mt-2 bg-linear-to-r from-emerald-500 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
-                Perfect Story Continuity
+                Intelligent Threat Detection
               </span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              AI-powered story tracking, intelligent continuity checking, and creative assistance for screenplays, novels, and long-form narratives
+              Context-aware threat detection, multi-modal defense modules, and AI-powered risk explanations — all running silently in your browser as you work
             </p>
           </div>
 
@@ -211,13 +211,13 @@ export default function Home() {
                   <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">AI-Powered Analytics</span>
                 </div>
                 <h3 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4">
-                  Contextual Story Engine
+                  Contextual Threat Engine
                 </h3>
                 <p className="text-lg text-slate-700 dark:text-slate-200 mb-6">
-                  Maintains deep context awareness across your entire manuscript, automatically tracking characters, locations, events, and relationships as you write. Never lose track of story details again.
+                  Maintains deep context awareness across your entire browsing session, automatically switching to the most relevant defense module based on the URL, active tab, and user actions. No manual scanning required.
                 </p>
                 <button className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-semibold transition-all hover:scale-105 shadow-lg">
-                  Start Writing
+                  Install Extension
                 </button>
               </div>
             </div>
@@ -231,9 +231,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-4 group-hover:bg-emerald-500 transition-colors">
                   <Brain className="h-6 w-6 text-emerald-500 group-hover:text-white transition-colors" />
                 </div>
-                <CardTitle className="text-xl ivy-font">Knowledge Graph Story Memory</CardTitle>
+                <CardTitle className="text-xl ivy-font">Threat Knowledge Graph</CardTitle>
                 <CardDescription className="ivy-font">
-                  Dynamic knowledge graph tracks all story entities and relationships - characters, locations, objects, events, and timelines evolve as your story progresses
+                  Dynamic knowledge graph maps all detected threats, attack vectors, and risk relationships — updated in real time as you browse across sessions
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -244,9 +244,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4 group-hover:bg-blue-500 transition-colors">
                   <Shield className="h-6 w-6 text-blue-500 group-hover:text-white transition-colors" />
                 </div>
-                <CardTitle className="text-xl ivy-font">Continuity Validation System</CardTitle>
+                <CardTitle className="text-xl ivy-font">Real-Time Threat Validation</CardTitle>
                 <CardDescription className="ivy-font">
-                  Intelligent consistency checking detects contradictions from simple errors to complex timeline issues while recognizing intentional narrative devices
+                  Intelligent threat checking detects phishing, malware, and social engineering — from simple URL anomalies to complex multi-step attack patterns
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -257,9 +257,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-4 group-hover:bg-purple-500 transition-colors">
                   <Sparkles className="h-6 w-6 text-purple-500 group-hover:text-white transition-colors" />
                 </div>
-                <CardTitle className="text-xl ivy-font">AI Creative Assistant</CardTitle>
+                <CardTitle className="text-xl ivy-font">AI Security Advisor</CardTitle>
                 <CardDescription className="ivy-font">
-                  Intelligent creative support suggests scene ideas, dialogue enhancements, and plot developments that match your established style and vision
+                  Explains every threat detection in plain English — why it's dangerous, the evidence, a calibrated confidence score, and a concrete mitigation recommendation
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -270,9 +270,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mb-4 group-hover:bg-amber-500 transition-colors">
                   <Search className="h-6 w-6 text-amber-500 group-hover:text-white transition-colors" />
                 </div>
-                <CardTitle className="text-xl ivy-font">Intelligent Recall & Navigation</CardTitle>
+                <CardTitle className="text-xl ivy-font">Intelligent Threat Recall</CardTitle>
                 <CardDescription className="ivy-font">
-                  Ask questions in natural language about any story element and receive precise answers with passage references and automated summaries
+                  Query your threat history in natural language and get precise answers with evidence references, risk timelines, and automated incident summaries
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -283,9 +283,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center mb-4 group-hover:bg-red-500 transition-colors">
                   <FileText className="h-6 w-6 text-red-500 group-hover:text-white transition-colors" />
                 </div>
-                <CardTitle className="text-xl ivy-font">Multi-Format Support</CardTitle>
+                <CardTitle className="text-xl ivy-font">Multi-Vector Detection</CardTitle>
                 <CardDescription className="ivy-font">
-                  Compatible with screenplays, novels, episodic scripts, and mixed formats - adapts to your writing style and genre conventions
+                  5 specialized defense modules — phishing, malware, social engineering, data exfiltration, and credential theft — each optimized for its threat class
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -296,9 +296,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center mb-4 group-hover:bg-teal-500 transition-colors">
                   <Users className="h-6 w-6 text-teal-500 group-hover:text-white transition-colors" />
                 </div>
-                <CardTitle className="text-xl ivy-font">Collaboration Support</CardTitle>
+                <CardTitle className="text-xl ivy-font">Team Security Operations</CardTitle>
                 <CardDescription className="ivy-font">
-                  Shared story knowledge base for writing teams with collaborative editing and role-based permissions for different contributors
+                  Shared threat intelligence for security teams with collaborative incident review and role-based access for analysts and administrators
                 </CardDescription>
               </CardHeader>
             </Card>

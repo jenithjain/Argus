@@ -1,8 +1,8 @@
 {
-  "name": "scriptforge",
+  "name": "ARGUS",
   "version": "0.1.0",
   "private": true,
-  "description": "ScriptForge - Smart Script Writing Assistant. AI-powered intelligent writing assistant for maintaining narrative continuity in screenplays and long-form stories",
+  "description": "ARGUS - Adaptive Risk & Generative Understanding System. AI-powered context-aware Chrome extension for cybersecurity threat detection and intelligent defense.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

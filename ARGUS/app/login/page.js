@@ -195,25 +195,25 @@ export default function LoginPage() {
         <div className="hidden md:block space-y-6">
           <div className="space-y-4">
             <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20">
-              Smart Script Writing Assistant
+              Adaptive Risk & Generative Understanding System
             </Badge>
             <h1 className="text-5xl font-bold text-foreground ivy-font">
               Welcome to
               <span className="block mt-2 bg-linear-to-r from-emerald-500 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
-                ScriptForge
+                ARGUS
               </span>
             </h1>
             <p className="text-lg text-muted-foreground ivy-font max-w-md">
-              Your intelligent writing companion for maintaining perfect narrative continuity across screenplays and long-form stories.
+              Your AI-powered cybersecurity guardian that monitors browser activity and activates the right defense module — silently protecting you in real time.
             </p>
           </div>
 
           {/* Feature Cards */}
           <div className="space-y-3 mt-8">
             {[
-              { icon: TrendingUp, title: "Story Intelligence", desc: "Track characters, timelines, and plot threads" },
-              { icon: Shield, title: "Continuity Protection", desc: "Detect inconsistencies before they become problems" },
-              { icon: Sparkles, title: "AI Creative Support", desc: "Intelligent suggestions that match your style" }
+              { icon: TrendingUp, title: "Threat Intelligence", desc: "Context-aware detection across URLs, emails, and downloads" },
+              { icon: Shield, title: "Active Defense", desc: "5 specialized modules activate automatically based on your context" },
+              { icon: Sparkles, title: "AI Security Advisor", desc: "Plain-English explanations with confidence scores and mitigations" }
             ].map((feature, idx) => (
               <div 
                 key={idx}
@@ -244,8 +244,8 @@ export default function LoginPage() {
             </CardTitle>
             <CardDescription className="ivy-font">
               {isLogin 
-                ? "Sign in to access your writing projects and story analytics" 
-                : "Create an account to start writing with AI assistance"}
+                ? "Sign in to access your security dashboard and threat reports" 
+                : "Create an account to activate your AI-powered security guardian"}
             </CardDescription>
           </CardHeader>
           <CardContent>

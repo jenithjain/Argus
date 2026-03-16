@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "ScriptForge - Smart Script Writing Assistant",
-  description: "AI-powered intelligent writing assistant for maintaining narrative continuity, tracking characters, timelines, and plot threads in screenplays and long-form stories",
+  title: "ARGUS - Adaptive Risk & Generative Understanding System",
+  description: "AI-powered context-aware Chrome extension that continuously monitors browser activity and intelligently activates the correct cybersecurity defense module based on what you are doing.",
 };
 
 export default function RootLayout({ children }) {

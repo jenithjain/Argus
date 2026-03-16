@@ -41,7 +41,7 @@ export default function DashboardLayout({ children }) {
             items={[
               { label: "Home", link: "/", ariaLabel: "Go to Home" },
               { label: "Dashboard", link: "/dashboard", ariaLabel: "View Dashboard" },
-              { label: "Campaign AI", link: "/campaign", ariaLabel: "AI Campaign Generator" },
+              { label: "Threat Analysis", link: "/campaign", ariaLabel: "AI Threat Analysis" },
               { label: "Assistant", link: "/assistant", ariaLabel: "AI Assistant" },
               { label: "Profile", link: "/profile", ariaLabel: "View Profile" },
             ]}

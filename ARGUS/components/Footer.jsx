@@ -12,15 +12,15 @@ export default function Footer() {
             <div className="flex items-center gap-2 mb-4">
               <img
                 src="/chain-forecast.svg"
-                alt="ScriptForgeAI Logo"
+                alt="ARGUSAI Logo"
                 className="h-8 w-8 dark:invert"
               />
               <span className="text-xl font-bold text-slate-900 dark:text-white">
-                ScriptForgeAI
+                ARGUSAI
               </span>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md">
-              Smart Script Writing Assistant. Maintain perfect narrative continuity, track characters and timelines, and get intelligent creative suggestions for your screenplays and stories.
+              Adaptive Risk & Generative Understanding System. Context-aware AI cybersecurity extension that monitors browser activity and automatically activates the right defense module — so you stay protected without changing how you work.
             </p>
           </div>
 
@@ -111,7 +111,7 @@ export default function Footer() {
         <div className="mt-12 border-t border-slate-200/30 pt-8 dark:border-slate-800/60">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              © {currentYear} Finance UI. All rights reserved.
+              © {currentYear} ARGUS. All rights reserved.
             </p>
             <div className="flex gap-6">
               <a
