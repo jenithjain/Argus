@@ -1,5 +1,6 @@
 // Popup script for controlling the extension
 let isDetecting = false;
+const DEFAULT_BACKEND_URL = 'https://YOUR-USERNAME-YOUR-SPACE.hf.space';
 
 // DOM elements
 const startBtn = document.getElementById('startBtn');
@@ -26,6 +27,8 @@ const connectionStatus = document.getElementById('connectionStatus');
 chrome.storage.local.get(['backendUrl', 'captureInterval'], (result) => {
   if (result.backendUrl) {
     backendUrlInput.value = result.backendUrl;
+  } else {
+    backendUrlInput.value = DEFAULT_BACKEND_URL;
   }
   if (result.captureInterval) {
     captureIntervalInput.value = result.captureInterval;
@@ -43,7 +46,7 @@ captureIntervalInput.addEventListener('change', () => {
 
 // Test backend connection
 testConnectionBtn.addEventListener('click', async () => {
-  const backendUrl = backendUrlInput.value || 'http://localhost:5000';
+  const backendUrl = (backendUrlInput.value || DEFAULT_BACKEND_URL).trim().replace(/\/$/, '');
   connectionStatus.style.display = 'block';
   connectionStatus.textContent = 'Testing backend...';
   connectionStatus.style.color = '#757575';
@@ -128,7 +131,7 @@ startBtn.addEventListener('click', async () => {
       } else {
         const errorMsg = response?.error || 'Unknown error occurred';
         console.error('Detection failed:', errorMsg);
-        alert('Failed to start detection.\n\n' + errorMsg + '\n\nMake sure:\n1. Backend server is running (python backend_server.py)\n2. Backend URL is correct (check settings)');
+        alert('Failed to start detection.\n\n' + errorMsg + '\n\nMake sure:\n1. Your Hugging Face Space is running\n2. Backend URL is your hf.space URL\n3. CORS and endpoint /health are available');
       }
     });
   } catch (error) {

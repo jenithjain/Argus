@@ -33,7 +33,8 @@ model = DeepfakeEfficientNet(pretrained=True)
 
 # Load trained deepfake detection weights if available
 weights_paths = [
-    os.path.join(os.path.dirname(__file__), "weights", "best_model.pth")
+    os.path.join(os.path.dirname(__file__), "weights", "best_model.pth"),
+    os.path.join(os.path.dirname(__file__), "best_model.pth")
 ]
 
 model_loaded = False
@@ -56,7 +57,7 @@ for weights_path in weights_paths:
                 print(f"✓ All model weights loaded ({len(unexpected)} extra keys in checkpoint ignored)")
             else:
                 print(f"  ⚠️ {len(missing)} params missing, {len(unexpected)} unexpected")
-                print(f"  Missing: {missing[:5]}..." if len(missing) > 5 else f"  Missing: {missing}")
+                print(f"  Missing: {list(missing)[:5]}..." if len(missing) > 5 else f"  Missing: {missing}") # type: ignore
             
             model_loaded = True
             
@@ -127,7 +128,7 @@ class TemporalTracker:
         
         # Track variance for anomaly detection
         if len(self.score_history) >= 5:
-            recent = list(self.score_history)[-5:]
+            recent = [x for x in self.score_history][-5:] # type: ignore
             variance = np.var(recent)
             self.variance_history.append(variance)
         
@@ -172,14 +173,14 @@ class TemporalTracker:
                 real_count += 1
         
         # Determine new verdict based on majority voting
-        if fake_count > real_count:
+        if fake_count > real_count: # type: ignore
             new_verdict = 'FAKE'
         else:
             new_verdict = 'REAL'
         
         # Update verdict (either first time or when changed)
         if previous_verdict != new_verdict:
-            self.current_verdict = new_verdict
+            self.current_verdict = new_verdict # type: ignore
             current_frames = len(self.frame_classifications)
             if previous_verdict is None:
                 # First verdict
@@ -217,7 +218,7 @@ class TemporalTracker:
             return 0.0
         scores = list(self.score_history)
         mean = sum(scores) / len(scores)
-        variance = sum((x - mean) ** 2 for x in scores) / len(scores)
+        variance = sum((x - mean) ** 2 for x in scores) / len(scores) # type: ignore
         return 1.0 - min(variance * 4, 1.0)  # Normalize to 0-1, higher is more stable
     
     def detect_anomalies(self):
@@ -245,7 +246,7 @@ class TemporalTracker:
         if (avg_score > self.high_confidence_threshold and 
             stability > 0.7 and 
             current_time - self.last_alert_time > self.alert_cooldown):
-            self.last_alert_time = current_time
+            self.last_alert_time = current_time # type: ignore
             return True
         return False
     
@@ -635,15 +636,15 @@ class DeepfakeDetector:
                 frame = self.draw_detection_overlay(frame, x, y, w, h, fake_prob, confidence_level)
                 
                 face_results.append({
-                    'face_prob': float(fake_prob),
-                    'combined_prob': float(fake_prob),  # Same as face_prob now
+                    'face_prob': float(fake_prob), # type: ignore
+                    'combined_prob': float(fake_prob),  # type: ignore
                     'bbox': {'x': int(x), 'y': int(y), 'w': int(w), 'h': int(h)}
                 })
                 
                 # Print detailed info every 10 frames
                 if self.frame_count % 10 == 0:
                     voting_stats = self.temporal_tracker.get_voting_stats()
-                    print(f"Frame {self.frame_count} | Face: {fake_prob*100:.0f}% | "
+                    print(f"Frame {self.frame_count} | Face: {fake_prob*100:.0f}% | " # type: ignore
                           f"Forensic: {frame_forensic_prob*100:.0f}% | "
                           f"Verdict: {confidence_level} | "
                           f"Votes [F:{voting_stats['fake_count']} R:{voting_stats['real_count']}]")

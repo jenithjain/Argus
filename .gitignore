@@ -14,6 +14,7 @@ env/
 
 # ── Model weights (too large for git) ──────────────────
 *.pth
+!best_model.pth
 *.pt
 *.onnx
 *.h5

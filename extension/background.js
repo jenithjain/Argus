@@ -1,5 +1,10 @@
 // Background service worker for managing tab capture and communication
 let activeDetectionTabId = null;
+const DEFAULT_BACKEND_URL = 'https://YOUR-USERNAME-YOUR-SPACE.hf.space';
+
+function normalizeBackendUrl(url) {
+  return (url || DEFAULT_BACKEND_URL).trim().replace(/\/$/, '');
+}
 
 // Convert data URL to Blob
 function dataURLtoBlob(dataURL) {
@@ -44,7 +49,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function handleAnalyzeFrame(imageDataUrl, sendResponse) {
   try {
     const settings = await chrome.storage.local.get(['backendUrl']);
-    const backendUrl = settings.backendUrl || 'http://localhost:5000';
+    const backendUrl = normalizeBackendUrl(settings.backendUrl);
 
     // Convert data URL to Blob
     const blob = dataURLtoBlob(imageDataUrl);
@@ -96,7 +101,7 @@ async function handleAnalyzeFrame(imageDataUrl, sendResponse) {
 async function handleResetBackend(sendResponse) {
   try {
     const settings = await chrome.storage.local.get(['backendUrl']);
-    const backendUrl = settings.backendUrl || 'http://localhost:5000';
+    const backendUrl = normalizeBackendUrl(settings.backendUrl);
     await fetch(`${backendUrl}/reset`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
@@ -113,7 +118,7 @@ async function handleStartDetection(tabId, sendResponse) {
   try {
     // Check if backend is available
     const settings = await chrome.storage.local.get(['backendUrl', 'captureInterval']);
-    const backendUrl = settings.backendUrl || 'http://localhost:5000';
+    const backendUrl = normalizeBackendUrl(settings.backendUrl);
     const captureInterval = settings.captureInterval || 1000;
 
     // Test backend connection
