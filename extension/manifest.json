@@ -1,12 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "Real-Time Deepfake Detection",
-  "version": "1.0.0",
-  "description": "AI-powered deepfake detection for videos playing in your browser",
+  "name": "ARGUS — Adaptive Risk & Generative Understanding System",
+  "version": "2.0.0",
+  "description": "Context-aware AI cybersecurity guardian. Deepfake detection, malicious URL blocking, phishing email scanning.",
   "permissions": [
     "storage",
     "tabs",
-    "scripting"
+    "scripting",
+    "webNavigation",
+    "webRequest",
+    "notifications",
+    "declarativeNetRequest"
   ],
   "host_permissions": [
     "http://localhost:5000/*",
@@ -40,7 +44,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["overlay.html", "overlay.css"],
+      "resources": ["overlay.html", "overlay.css", "blocked.html"],
       "matches": ["<all_urls>"]
     }
   ]

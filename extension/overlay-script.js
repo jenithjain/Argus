@@ -29,8 +29,15 @@
       updateDisplay(event.data.data);
     } else if (event.data.type === 'resetDisplay') {
       resetDisplay();
+    } else if (event.data.type === 'setTheme') {
+      applyTheme(event.data.theme);
     }
   });
+
+  function applyTheme(theme) {
+    const normalized = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', normalized);
+  }
 
   function updateDisplay(data) {
     if (!data) return;

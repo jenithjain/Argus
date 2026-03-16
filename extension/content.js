@@ -1,17 +1,171 @@
 // Content script for capturing tab content and displaying overlay
-console.log('Deepfake Detection: Content script loaded and ready');
-console.log('Page URL:', window.location.href);
+// ARGUS v2 Content Script — deepfake capture + email scanning + inline URL badges
+'use strict';
 
-// Global variables (use window to avoid redeclaration)
-if (!window.deepfakeDetection) {
-  window.deepfakeDetection = {
-    overlayIframe: null,
+console.log('[ARGUS] Content script v2 loaded —', window.location.href);
+
+// ─── Guard against double-injection ──────────────────────────────────────────
+if (window.__argusLoaded) {
+  // Already loaded, skip
+} else {
+window.__argusLoaded = true;
+
+// ─── State ───────────────────────────────────────────────────────────────────
+if (!window.__argusState) {
+  window.__argusState = {
+    overlayIframe:  null,
     captureInterval: null,
-    isCapturing: false
+    isCapturing:    false,
+    emailObserver:  null,
+    scannedLinks:   new WeakSet(),
+    emailScanned:   false,
   };
 }
+const state = window.__argusState;
 
-const state = window.deepfakeDetection;
+// ─── Context Detection ────────────────────────────────────────────────────────
+const pageUrl = window.location.href;
+const isGmail   = /mail\.google\.com/.test(pageUrl);
+const isOutlook = /outlook\.(com|live|office)/.test(pageUrl);
+const isMailClient = isGmail || isOutlook;
+
+// ─── Email Scanning ───────────────────────────────────────────────────────────
+
+const PHISHING_KEYWORDS = [
+  'verify your account','confirm your identity','unusual activity','your account will be',
+  'suspended','click here to verify','update your payment','limited time','act now',
+  'your password','reset your password','login attempt','unauthorized access',
+  'dear customer','dear user','dear member','validate your','urgent action',
+  'account locked','security alert','you have been selected','claim your prize',
+  'won a','free gift','limited offer','expires today','expires in 24',
+];
+
+function extractEmailLinks(rootEl) {
+  const anchors = Array.from(rootEl.querySelectorAll('a[href]'));
+  return anchors.map(a => ({
+    href: a.href,
+    text: (a.textContent || '').trim().slice(0, 120),
+    el:   a,
+  })).filter(l => l.href && (l.href.startsWith('http://') || l.href.startsWith('https://')));
+}
+
+function detectPhishingKeywords(text) {
+  const lower = text.toLowerCase();
+  return PHISHING_KEYWORDS.filter(kw => lower.includes(kw));
+}
+
+async function scanEmailContent(rootEl) {
+  const bodyText  = (rootEl.innerText || rootEl.textContent || '').slice(0, 8000);
+  const links     = extractEmailLinks(rootEl);
+  const kwHits    = detectPhishingKeywords(bodyText);
+
+  // Ask background to scan each link
+  const scanPromises = links.slice(0, 12).map(link =>
+    new Promise(resolve => {
+      chrome.runtime.sendMessage({ action: 'scanUrl', url: link.href }, result => {
+        resolve({ link, result: result || {} });
+      });
+    })
+  );
+
+  const linkResults = await Promise.all(scanPromises);
+  const malicious   = linkResults.filter(r => r.result.verdict === 'HIGH_RISK' || r.result.verdict === 'MALICIOUS');
+  const suspicious  = linkResults.filter(r => r.result.verdict === 'SUSPICIOUS');
+  const threats     = malicious.length + suspicious.length;
+
+  // Annotate links inline
+  linkResults.forEach(({ link, result }) => {
+    if (result.verdict === 'HIGH_RISK' || result.verdict === 'MALICIOUS') {
+      injectLinkBadge(link.el, 'danger', '⚠ MALICIOUS');
+    } else if (result.verdict === 'SUSPICIOUS') {
+      injectLinkBadge(link.el, 'warning', '? SUSPICIOUS');
+    }
+  });
+
+  // Report to background → popup
+  const topThreat = malicious[0] || suspicious[0];
+  chrome.runtime.sendMessage({
+    action: 'emailScanResult',
+    result: {
+      threats,
+      linksFound: links.length,
+      kwHits:     kwHits.length,
+      summary:    topThreat
+        ? `Suspicious link detected: ${topThreat.link.href.slice(0, 80)}`
+        : kwHits.length > 0
+        ? `Phishing keywords detected: "${kwHits[0]}"`
+        : null,
+    },
+  });
+}
+
+function injectLinkBadge(anchor, level, label) {
+  if (anchor.__argusBadged) return;
+  anchor.__argusBadged = true;
+  const badge = document.createElement('span');
+  badge.textContent = ` ${label}`;
+  badge.style.cssText = `
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+    background: ${level === 'danger' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.12)'};
+    color: ${level === 'danger' ? '#ef4444' : '#f59e0b'};
+    border: 1px solid ${level === 'danger' ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.3)'};
+    font-family: monospace;
+    cursor: default;
+  `;
+  anchor.insertAdjacentElement('afterend', badge);
+}
+
+// Watch for email open in Gmail / Outlook
+function watchEmailClient() {
+  if (!isMailClient) return;
+
+  // Scan immediately if content already loaded
+  tryInitialEmailScan();
+
+  // MutationObserver for dynamically loaded email threads
+  if (!state.emailObserver) {
+    state.emailObserver = new MutationObserver(() => {
+      if (!state.emailScanned) tryInitialEmailScan();
+    });
+    state.emailObserver.observe(document.body, { childList: true, subtree: true });
+  }
+}
+
+function tryInitialEmailScan() {
+  let emailRoot = null;
+
+  if (isGmail) {
+    // Gmail: main reading pane
+    emailRoot = document.querySelector('[role="main"]') ||
+                document.querySelector('.a3s') ||
+                document.querySelector('[data-message-id]');
+  } else if (isOutlook) {
+    emailRoot = document.querySelector('[aria-label="Message body"]') ||
+                document.querySelector('.ReadingPaneContent') ||
+                document.querySelector('[data-app-section="EmailReadingPane"]');
+  }
+
+  if (emailRoot && !state.emailScanned) {
+    state.emailScanned = true;
+    scanEmailContent(emailRoot);
+    // Re-scan on email change (Gmail loads new emails via AJAX)
+    setTimeout(() => { state.emailScanned = false; }, 8000);
+  }
+}
+
+// Start email watching
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', watchEmailClient);
+} else {
+  watchEmailClient();
+}
 
 // Create and inject overlay
 function createOverlay() {
@@ -22,16 +176,28 @@ function createOverlay() {
   state.overlayIframe.src = chrome.runtime.getURL('overlay.html');
   state.overlayIframe.style.cssText = `
     position: fixed;
-    top: 0;
-    right: 0;
+    top: 16px;
+    right: 16px;
     width: 360px;
-    height: 100vh;
+    height: 520px;
     border: none;
     z-index: 999999;
     pointer-events: auto;
+    background: transparent;
   `;
+
+  state.overlayIframe.addEventListener('load', () => {
+    chrome.storage.local.get(['argusTheme'], (store) => {
+      postOverlayTheme(store.argusTheme || 'dark');
+    });
+  });
   
   document.body.appendChild(state.overlayIframe);
+}
+
+function postOverlayTheme(theme) {
+  if (!state.overlayIframe || !state.overlayIframe.contentWindow) return;
+  state.overlayIframe.contentWindow.postMessage({ type: 'setTheme', theme }, '*');
 }
 
 // Remove overlay
@@ -284,7 +450,25 @@ function resetOverlay() {
 
 // Listen for messages from background script
 if (!window.deepfakeDetectionListenerAdded) {
-  window.deepfakeDetectionListenerAdded = true;
+  window.deepfakeDetectionListenerAdded = true; // keep for compat
+
+  // Auto-start signal: when any video starts playing, ask background to start detection.
+  document.addEventListener('play', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLVideoElement)) return;
+    if (state.isCapturing) return;
+    try {
+      chrome.runtime.sendMessage({ action: 'videoPlaybackDetected', url: window.location.href });
+    } catch (e) {
+      // ignore
+    }
+  }, true);
+
+  // Keep overlay theme synced when user toggles popup theme.
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local' || !changes.argusTheme) return;
+    postOverlayTheme(changes.argusTheme.newValue || 'dark');
+  });
   
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('Content script received message:', message.action);
@@ -302,6 +486,12 @@ if (!window.deepfakeDetectionListenerAdded) {
       sendResponse({ success: true });
       return false; // Synchronous response
     } 
+
+    if (message.action === 'hasVideoElement') {
+      const hasVideo = Boolean(document.querySelector('video'));
+      sendResponse({ success: true, hasVideo });
+      return false;
+    }
     
     if (message.action === 'stopDetection') {
       console.log('Stopping detection');
@@ -327,3 +517,5 @@ if (!window.deepfakeDetectionListenerAdded) {
   
   console.log('Deepfake Detection: Message listeners registered');
 }
+
+} // end window.__argusLoaded guard
