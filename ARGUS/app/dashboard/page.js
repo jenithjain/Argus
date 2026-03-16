@@ -14,7 +14,7 @@ import {
   ArrowUpRight, ArrowDownRight, Activity,
   Target, Shield, Radio, Eye, Brain, PenTool,
   AlertTriangle, CheckCircle, HelpCircle, XCircle, Clock, Cpu, Layers,
-  GitBranch, Loader2, Link, Mail, Video, TrendingUp, Zap, Server
+  GitBranch, Loader2, Link, Mail, Video, TrendingUp, Zap, Server, MessageSquareWarning
 } from "lucide-react";
 
 const MerkleTreeVisualization = lazy(() => import("@/components/MerkleTreeVisualization"));
@@ -601,7 +601,7 @@ export default function Dashboard() {
                         Detection by Type
                       </CardTitle>
                       <CardDescription className="ivy-font text-xs">
-                        Distribution across URL, Email, and Deepfake modules
+                        Distribution across URL, Email, Deepfake, and Prompt Injection modules
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -612,7 +612,8 @@ export default function Dashboard() {
                               data={[
                                 { name: 'URL Analysis', value: securityAnalytics.summary.byType.url || 0 },
                                 { name: 'Email Analysis', value: securityAnalytics.summary.byType.email || 0 },
-                                { name: 'Deepfake Detection', value: securityAnalytics.summary.byType.deepfake || 0 }
+                                { name: 'Deepfake Detection', value: securityAnalytics.summary.byType.deepfake || 0 },
+                                { name: 'Prompt Injection', value: securityAnalytics.summary.byType.promptInjection || 0 }
                               ]}
                               cx="50%"
                               cy="50%"
@@ -626,6 +627,7 @@ export default function Dashboard() {
                               <Cell fill={chartColors.primary} />
                               <Cell fill={chartColors.secondary} />
                               <Cell fill={chartColors.tertiary} />
+                              <Cell fill={chartColors.quaternary} />
                             </Pie>
                             <Tooltip
                               contentStyle={{
@@ -689,6 +691,20 @@ export default function Dashboard() {
                             <span className="text-sm font-bold text-foreground ivy-font">{securityAnalytics.summary.byType.deepfake || 0}</span>
                             <div className="text-xs text-muted-foreground">
                               {securityAnalytics.summary.total > 0 ? `${((securityAnalytics.summary.byType.deepfake / securityAnalytics.summary.total) * 100).toFixed(0)}%` : '0%'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-transparent hover:from-purple-500/20 transition-all duration-200 group cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-purple-500/20 group-hover:bg-purple-500 transition-colors">
+                              <MessageSquareWarning className="h-4 w-4 text-purple-500 group-hover:text-white transition-colors" />
+                            </div>
+                            <span className="text-sm font-medium text-foreground ivy-font">Prompt Injection</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-foreground ivy-font">{securityAnalytics.summary.byType.promptInjection || 0}</span>
+                            <div className="text-xs text-muted-foreground">
+                              {securityAnalytics.summary.total > 0 ? `${((securityAnalytics.summary.byType.promptInjection / securityAnalytics.summary.total) * 100).toFixed(0)}%` : '0%'}
                             </div>
                           </div>
                         </div>
@@ -1131,6 +1147,7 @@ export default function Dashboard() {
                                   {detection.detectionType === 'url' && (detection.url || 'Unknown URL')}
                                   {detection.detectionType === 'email' && `${detection.emailSender || 'Unknown Sender'} - ${detection.emailSubject || 'No Subject'}`}
                                   {detection.detectionType === 'deepfake' && `Frame ${detection.frameCount || 0} - ${detection.verdict || 'UNCERTAIN'}`}
+                                  {detection.detectionType === 'prompt_injection' && `Prompt Injection - ${detection.verdict || 'THREAT'}`}
                                 </p>
                                 <p className="text-xs text-muted-foreground">{detection.reason}</p>
                                 {detection.explanation && (

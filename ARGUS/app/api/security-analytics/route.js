@@ -70,8 +70,9 @@ export async function GET(request) {
     };
 
     // Count by type
-    ['url', 'email', 'deepfake'].forEach(t => {
-      summary.byType[t] = analytics.filter(a => a.detectionType === t).length;
+    ['url', 'email', 'deepfake', 'prompt_injection'].forEach(t => {
+      const key = t === 'prompt_injection' ? 'promptInjection' : t;
+      summary.byType[key] = analytics.filter(a => a.detectionType === t).length;
     });
 
     // Count by verdict
