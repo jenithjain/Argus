@@ -325,6 +325,7 @@ body {
 .df-icon   { background: color-mix(in srgb, #7c3aed 16%, transparent); color: #a78bfa; border: 1.5px solid color-mix(in srgb, #7c3aed 36%, var(--border)); }
 .url-icon  { background: color-mix(in srgb, #2563eb 16%, transparent); color: #60a5fa; border: 1.5px solid color-mix(in srgb, #2563eb 35%, var(--border)); }
 .mail-icon { background: color-mix(in srgb, #0ca678 16%, transparent); color: #20c997; border: 1.5px solid color-mix(in srgb, #0ca678 35%, var(--border)); }
+.pi-icon   { background: color-mix(in srgb, #e85d04 16%, transparent); color: #fb923c; border: 1.5px solid color-mix(in srgb, #e85d04 35%, var(--border)); }
 
 .module-name {
   flex: 1;

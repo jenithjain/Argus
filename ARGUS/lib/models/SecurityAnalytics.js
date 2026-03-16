@@ -13,11 +13,11 @@ const SecurityAnalyticsSchema = new mongoose.Schema({
     index: true
   },
   
-  // Detection type: 'url', 'email', 'deepfake'
+  // Detection type: 'url', 'email', 'deepfake', 'prompt_injection'
   detectionType: {
     type: String,
     required: true,
-    enum: ['url', 'email', 'deepfake'],
+    enum: ['url', 'email', 'deepfake', 'prompt_injection'],
     index: true
   },
   

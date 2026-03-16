@@ -49,6 +49,15 @@ const mailVerdict    = document.getElementById('mail-verdict');
 const mailLinks      = document.getElementById('mail-links');
 const mailThreats    = document.getElementById('mail-threats');
 
+// Module: Prompt Injection
+const modPiCard      = document.getElementById('mod-pi');
+const piStatusDot    = document.getElementById('pi-status-dot');
+const piState        = document.getElementById('pi-state');
+const piResult       = document.getElementById('pi-result');
+const piVerdict      = document.getElementById('pi-verdict');
+const piThreatType   = document.getElementById('pi-threat-type');
+const piScore        = document.getElementById('pi-score');
+
 // Threat feed
 const threatFeedLabel= document.getElementById('threatFeedLabel');
 const threatFeed     = document.getElementById('threatFeed');
@@ -69,6 +78,7 @@ const pillDots = {
   df:   protectedPill.querySelectorAll('.module-dot')[0],
   url:  protectedPill.querySelectorAll('.module-dot')[1],
   mail: protectedPill.querySelectorAll('.module-dot')[2],
+  pi:   protectedPill.querySelectorAll('.module-dot')[3],
 };
 
 // ---- State ----
@@ -420,5 +430,58 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === 'emailScanResult') {
     handleEmailScanResult(msg.result);
   }
+
+  // Prompt Injection module
+  if (msg.action === 'piModuleActive') {
+    piStatusDot.className = 'module-status-dot active';
+    modPiCard.className   = 'module-card active';
+    pillDots.pi.className = 'module-dot active';
+    piState.textContent   = `Active on ${msg.site || 'AI chatbot'}`;
+  }
+
+  if (msg.action === 'piScanResult') {
+    handlePIScanResult(msg.result);
+  }
 });
+
+// ---- Prompt Injection Result Handler ----
+function handlePIScanResult(r) {
+  if (!r) return;
+
+  if (r.verdict === 'CLEAR') {
+    piResult.style.display  = 'none';
+    piStatusDot.className   = 'module-status-dot active';
+    modPiCard.className     = 'module-card active';
+    pillDots.pi.className   = 'module-dot active';
+    piState.textContent     = '✓ Prompt verified clean';
+    return;
+  }
+
+  // THREAT
+  piResult.style.display = 'flex';
+  const score = r.score || 0;
+  const pct = Math.round(score * 100);
+  const threatType = (r.threat_type || 'UNKNOWN').replace(/_/g, ' ');
+  const isBlock = r.action === 'BLOCK';
+  const level = isBlock ? 'danger' : 'warning';
+
+  piVerdict.textContent   = r.verdict;
+  piVerdict.className     = `mr-val ${level}`;
+  piThreatType.textContent = threatType;
+  piThreatType.className  = `mr-val ${level}`;
+  piScore.textContent     = pct + '%';
+  piScore.className       = `mr-val ${level}`;
+
+  piStatusDot.className   = `module-status-dot ${level}`;
+  modPiCard.className     = `module-card ${level}`;
+  pillDots.pi.className   = `module-dot ${level === 'danger' ? 'danger' : 'warn'}`;
+  piState.textContent     = isBlock ? 'INJECTION BLOCKED' : 'Suspicious prompt detected';
+
+  updateGlobalRisk(isBlock ? 85 : 55);
+  addThreatFeedItem(
+    level,
+    isBlock ? 'Prompt Injection Blocked' : 'Suspicious Prompt Detected',
+    r.explanation?.summary || `${threatType} — Score: ${pct}%`
+  );
+}
 
