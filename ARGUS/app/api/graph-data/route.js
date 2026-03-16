@@ -2,18 +2,60 @@
 import { NextResponse } from 'next/server';
 import { getGraphData } from '@/lib/graph-builder';
 
+// ── Neo4j helpers ──────────────────────────────────────────────────────────
+// Neo4j integers arrive as objects with { low, high } keys.
+// We must convert them to plain JS numbers/strings before sending to React.
+
+function neo4jToJs(val) {
+  if (val === null || val === undefined) return val;
+  // Neo4j Integer object: { low: number, high: number }
+  if (typeof val === 'object' && 'low' in val && 'high' in val) {
+    // For values that fit in a safe JS number use low directly
+    if (val.high === 0 || val.high === -1) return val.low;
+    // Large integers: convert via BigInt-style math
+    return Number(BigInt(val.high) * BigInt(2 ** 32) + BigInt(val.low >>> 0));
+  }
+  return val;
+}
+
+function sanitizeNeo4jProps(props) {
+  if (!props || typeof props !== 'object') return props;
+  const clean = {};
+  for (const [key, val] of Object.entries(props)) {
+    if (val === null || val === undefined) {
+      clean[key] = val;
+    } else if (Array.isArray(val)) {
+      clean[key] = val.map(v => (typeof v === 'object' && v !== null && 'low' in v && 'high' in v) ? neo4jToJs(v) : v);
+    } else if (typeof val === 'object' && 'low' in val && 'high' in val) {
+      clean[key] = neo4jToJs(val);
+    } else {
+      clean[key] = val;
+    }
+  }
+  return clean;
+}
+
+function safeId(raw) {
+  if (raw === null || raw === undefined) return '';
+  if (typeof raw === 'object' && 'low' in raw && 'high' in raw) return String(neo4jToJs(raw));
+  return String(raw);
+}
+
+// ── Route handler ──────────────────────────────────────────────────────────
+
 export async function GET(request) {
   try {
     const graphData = await getGraphData();
 
     // Transform for react-force-graph format
     const nodes = graphData.nodes.map(node => {
-      const nodeId = typeof node.id === 'object' ? node.id.toString() : String(node.id);
+      const nodeId = safeId(node.id);
+      const cleanProps = sanitizeNeo4jProps(node.properties || {});
       return {
         id: nodeId,
         label: node.label,
-        name: node.properties.name || node.properties.id || node.label,
-        ...node.properties,
+        name: cleanProps.name || cleanProps.id || node.label,
+        ...cleanProps,
         // Color coding by node type
         color: getNodeColor(node.label),
         size: getNodeSize(node.label),
@@ -27,13 +69,13 @@ export async function GET(request) {
     const links = graphData.links
       .filter(link => {
         if (!link.source || !link.target) return false;
-        const sourceId = typeof link.source === 'object' ? link.source.toString() : String(link.source);
-        const targetId = typeof link.target === 'object' ? link.target.toString() : String(link.target);
+        const sourceId = safeId(link.source);
+        const targetId = safeId(link.target);
         return validNodeIds.has(sourceId) && validNodeIds.has(targetId);
       })
       .map(link => {
-        const sourceId = typeof link.source === 'object' ? link.source.toString() : String(link.source);
-        const targetId = typeof link.target === 'object' ? link.target.toString() : String(link.target);
+        const sourceId = safeId(link.source);
+        const targetId = safeId(link.target);
         return {
           source: sourceId,
           target: targetId,

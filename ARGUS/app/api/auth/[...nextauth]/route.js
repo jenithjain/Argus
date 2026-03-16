@@ -1,8 +1,13 @@
-import NextAuth from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
+import _NextAuth from "next-auth";
+import _CredentialsProvider from "next-auth/providers/credentials";
+import _GoogleProvider from "next-auth/providers/google";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
+
+// Turbopack / Webpack CJS-ESM interop: packages may arrive as { default: fn }
+const NextAuth = _NextAuth.default ?? _NextAuth;
+const CredentialsProvider = _CredentialsProvider.default ?? _CredentialsProvider;
+const GoogleProvider = _GoogleProvider.default ?? _GoogleProvider;
 
 export const authOptions = {
   providers: [

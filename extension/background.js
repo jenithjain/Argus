@@ -18,26 +18,32 @@ let activeDetectionTabId = null;
 const autoStartCooldownByTab = new Map();
 const manuallyStoppedTabs = new Set();
 
-// ─── RBAC: Cached user ID from the Next.js session ──────────────────────────
+/// ─── RBAC: Cached user ID from the Next.js session ──────────────────────────
 let _cachedUserId = null;
 let _userIdFetchedAt = 0;
 const USER_ID_CACHE_MS = 5 * 60 * 1000; // re-fetch every 5 min
 
 async function getUserId() {
+  // Return cached value if fresh enough
   if (_cachedUserId && Date.now() - _userIdFetchedAt < USER_ID_CACHE_MS) {
     return _cachedUserId;
   }
+  // Try fetching from the Next.js session endpoint with a short timeout
+  // so we never block the caller for too long.
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
     const resp = await fetch('http://localhost:3000/api/auth/session', {
-      credentials: 'include',
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     if (resp.ok) {
       const session = await resp.json();
       _cachedUserId = session?.user?.id || null;
       _userIdFetchedAt = Date.now();
     }
   } catch {
-    // session endpoint unreachable — keep cached value
+    // session endpoint unreachable or timed out — keep cached / null value
   }
   return _cachedUserId;
 }
@@ -205,11 +211,15 @@ function getImmediateLexicalBlock(urlStr) {
 async function analyzeUrlWithGemini(urlStr) {
   try {
     const userId = await getUserId();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     const resp = await fetch(`${GEMINI_PROXY_URL}/analyze-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: urlStr, userId }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     if (!resp.ok) throw new Error(`Proxy error: ${resp.status}`);
     return await resp.json();
   } catch (err) {
@@ -605,6 +615,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       sendResponse({ success: true });
       return true;
+    case 'setArgusUserId':
+      // Dashboard or popup can push the userId for RBAC tagging
+      _cachedUserId = message.userId || null;
+      _userIdFetchedAt = Date.now();
+      console.log('[ARGUS BG] userId set to:', _cachedUserId);
+      sendResponse({ ok: true });
+      return true;
   }
 });
 
@@ -651,11 +668,15 @@ async function handleAnalyzeFrame(imageDataUrl, sendResponse) {
     // Forward to ARGUS dashboard with userId for RBAC
     try {
       const userId = await getUserId();
+      const ingestController = new AbortController();
+      const ingestTimeout = setTimeout(() => ingestController.abort(), 3000);
       await fetch('http://localhost:3000/api/ingest-result', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ ...data, userId }),
+        signal:  ingestController.signal,
       });
+      clearTimeout(ingestTimeout);
     } catch { /* silent */ }
 
   } catch (error) {
@@ -773,6 +794,8 @@ async function handleLogEmailScan({ sender, subject, verdict, score, reason, sig
     console.log('[ARGUS Email] Sending payload:', JSON.stringify(payload, null, 2));
     
     const userId = await getUserId();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(`${GEMINI_PROXY_URL}/analyze-email`, {
       method:  'POST',
       headers: { 
@@ -780,7 +803,9 @@ async function handleLogEmailScan({ sender, subject, verdict, score, reason, sig
         'Accept': 'application/json'
       },
       body: JSON.stringify({ ...payload, userId }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     
     console.log('[ARGUS Email] Response status:', response.status, response.statusText);
     

@@ -623,7 +623,7 @@ export default function KnowledgeGraphPage() {
                       {loadingAI ? (
                         <div className="flex items-center gap-2 text-muted-foreground text-sm">
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Analyzing with Gemini AI...</span>
+                          <span>Analyzing...</span>
                         </div>
                       ) : aiExplanation ? (
                         <div className="text-sm text-foreground leading-relaxed bg-muted/50 rounded-lg p-3">

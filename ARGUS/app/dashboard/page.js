@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart, Line
 } from "recharts";
 import {
-  ArrowUpRight, ArrowDownRight, Activity, 
+  ArrowUpRight, ArrowDownRight, Activity,
   Target, Shield, Radio, Eye, Brain, PenTool,
   AlertTriangle, CheckCircle, HelpCircle, XCircle, Clock, Cpu, Layers,
   GitBranch, Loader2
@@ -67,15 +67,15 @@ export default function Dashboard() {
       setIsDarkMode(isDark);
       setChartColors(isDark ? CHART_COLORS.dark : CHART_COLORS.light);
     };
-    
+
     updateTheme();
-    
+
     const observer = new MutationObserver(updateTheme);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -108,7 +108,7 @@ export default function Dashboard() {
             return next;
           });
         }
-      } catch {}
+      } catch { }
     };
 
     return () => es.close();
@@ -321,10 +321,9 @@ export default function Dashboard() {
                         {liveResult.confidence_level === 'FAKE' && <XCircle className="h-8 w-8 text-red-500" />}
                         {liveResult.confidence_level === 'REAL' && <CheckCircle className="h-8 w-8 text-emerald-500" />}
                         {(liveResult.confidence_level === 'UNCERTAIN' || !liveResult.confidence_level) && <HelpCircle className="h-8 w-8 text-yellow-500" />}
-                        <span className={`text-2xl font-bold ${
-                          liveResult.confidence_level === 'FAKE' ? 'text-red-500' :
-                          liveResult.confidence_level === 'REAL' ? 'text-emerald-500' : 'text-yellow-500'
-                        }`}>
+                        <span className={`text-2xl font-bold ${liveResult.confidence_level === 'FAKE' ? 'text-red-500' :
+                            liveResult.confidence_level === 'REAL' ? 'text-emerald-500' : 'text-yellow-500'
+                          }`}>
                           {liveResult.confidence_level || 'UNCERTAIN'}
                         </span>
                       </div>
@@ -338,16 +337,14 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center gap-3">
-                        <AlertTriangle className={`h-8 w-8 ${
-                          liveResult.severity === 'CRITICAL' ? 'text-red-500' :
-                          liveResult.severity === 'HIGH' ? 'text-orange-500' :
-                          liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
-                        }`} />
-                        <span className={`text-2xl font-bold ${
-                          liveResult.severity === 'CRITICAL' ? 'text-red-500' :
-                          liveResult.severity === 'HIGH' ? 'text-orange-500' :
-                          liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
-                        }`}>
+                        <AlertTriangle className={`h-8 w-8 ${liveResult.severity === 'CRITICAL' ? 'text-red-500' :
+                            liveResult.severity === 'HIGH' ? 'text-orange-500' :
+                              liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
+                          }`} />
+                        <span className={`text-2xl font-bold ${liveResult.severity === 'CRITICAL' ? 'text-red-500' :
+                            liveResult.severity === 'HIGH' ? 'text-orange-500' :
+                              liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
+                          }`}>
                           {liveResult.severity}
                         </span>
                       </div>
@@ -365,10 +362,9 @@ export default function Dashboard() {
                       </div>
                       <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            (liveResult.fake_probability || 0) > 0.55 ? 'bg-red-500' :
-                            (liveResult.fake_probability || 0) > 0.3 ? 'bg-yellow-500' : 'bg-emerald-500'
-                          }`}
+                          className={`h-full rounded-full transition-all duration-500 ${(liveResult.fake_probability || 0) > 0.55 ? 'bg-red-500' :
+                              (liveResult.fake_probability || 0) > 0.3 ? 'bg-yellow-500' : 'bg-emerald-500'
+                            }`}
                           style={{ width: `${(liveResult.fake_probability || 0) * 100}%` }}
                         />
                       </div>
@@ -406,7 +402,7 @@ export default function Dashboard() {
                         AI Explanation
                       </CardTitle>
                       <CardDescription>
-                        Gemini 2.0 Flash — explains WHY this verdict was reached
+                        Explaination of WHY this verdict was reached
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -416,19 +412,17 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card className={`border-border/40 backdrop-blur-sm ${
-                    liveResult.severity === 'CRITICAL' ? 'bg-red-500/5 border-red-500/20' :
-                    liveResult.severity === 'HIGH' ? 'bg-orange-500/5 border-orange-500/20' :
-                    liveResult.severity === 'MEDIUM' ? 'bg-yellow-500/5 border-yellow-500/20' :
-                    'bg-emerald-500/5 border-emerald-500/20'
-                  }`}>
+                  <Card className={`border-border/40 backdrop-blur-sm ${liveResult.severity === 'CRITICAL' ? 'bg-red-500/5 border-red-500/20' :
+                      liveResult.severity === 'HIGH' ? 'bg-orange-500/5 border-orange-500/20' :
+                        liveResult.severity === 'MEDIUM' ? 'bg-yellow-500/5 border-yellow-500/20' :
+                          'bg-emerald-500/5 border-emerald-500/20'
+                    }`}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-lg">
-                        <Shield className={`h-5 w-5 ${
-                          liveResult.severity === 'CRITICAL' ? 'text-red-500' :
-                          liveResult.severity === 'HIGH' ? 'text-orange-500' :
-                          liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
-                        }`} />
+                        <Shield className={`h-5 w-5 ${liveResult.severity === 'CRITICAL' ? 'text-red-500' :
+                            liveResult.severity === 'HIGH' ? 'text-orange-500' :
+                              liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
+                          }`} />
                         Recommended Action
                       </CardTitle>
                     </CardHeader>
@@ -457,8 +451,8 @@ export default function Dashboard() {
                         <AreaChart data={probHistory}>
                           <defs>
                             <linearGradient id="colorLiveFake" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
@@ -490,15 +484,13 @@ export default function Dashboard() {
                         <p className="text-muted-foreground text-center py-4">Waiting for frames...</p>
                       ) : (
                         liveLog.map((entry, i) => (
-                          <div key={i} className={`flex items-center gap-3 px-3 py-1.5 rounded ${
-                            entry.confidence_level === 'FAKE' ? 'bg-red-500/5' :
-                            entry.confidence_level === 'REAL' ? 'bg-emerald-500/5' : 'bg-muted/30'
-                          }`}>
-                            <span className="text-muted-foreground w-12">#{entry.frame_count}</span>
-                            <span className={`w-20 font-semibold ${
-                              entry.confidence_level === 'FAKE' ? 'text-red-500' :
-                              entry.confidence_level === 'REAL' ? 'text-emerald-500' : 'text-yellow-500'
+                          <div key={i} className={`flex items-center gap-3 px-3 py-1.5 rounded ${entry.confidence_level === 'FAKE' ? 'bg-red-500/5' :
+                              entry.confidence_level === 'REAL' ? 'bg-emerald-500/5' : 'bg-muted/30'
                             }`}>
+                            <span className="text-muted-foreground w-12">#{entry.frame_count}</span>
+                            <span className={`w-20 font-semibold ${entry.confidence_level === 'FAKE' ? 'text-red-500' :
+                                entry.confidence_level === 'REAL' ? 'text-emerald-500' : 'text-yellow-500'
+                              }`}>
                               {entry.confidence_level || 'UNCERTAIN'}
                             </span>
                             <span className="text-muted-foreground">
@@ -577,10 +569,9 @@ export default function Dashboard() {
                       <div className="text-3xl font-bold text-yellow-500">{securityAnalytics.summary.avgScore}</div>
                       <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${
-                            securityAnalytics.summary.avgScore >= 70 ? 'bg-red-500' :
-                            securityAnalytics.summary.avgScore >= 40 ? 'bg-yellow-500' : 'bg-emerald-500'
-                          }`}
+                          className={`h-full rounded-full ${securityAnalytics.summary.avgScore >= 70 ? 'bg-red-500' :
+                              securityAnalytics.summary.avgScore >= 40 ? 'bg-yellow-500' : 'bg-emerald-500'
+                            }`}
                           style={{ width: `${securityAnalytics.summary.avgScore}%` }}
                         />
                       </div>
@@ -775,12 +766,11 @@ export default function Dashboard() {
                         securityAnalytics.recentDetections.map((detection, idx) => (
                           <div
                             key={idx}
-                            className={`p-4 rounded-lg border ${
-                              detection.severity === 'CRITICAL' ? 'border-red-500/30 bg-red-500/5' :
-                              detection.severity === 'HIGH' ? 'border-orange-500/30 bg-orange-500/5' :
-                              detection.severity === 'MEDIUM' ? 'border-yellow-500/30 bg-yellow-500/5' :
-                              'border-emerald-500/30 bg-emerald-500/5'
-                            }`}
+                            className={`p-4 rounded-lg border ${detection.severity === 'CRITICAL' ? 'border-red-500/30 bg-red-500/5' :
+                                detection.severity === 'HIGH' ? 'border-orange-500/30 bg-orange-500/5' :
+                                  detection.severity === 'MEDIUM' ? 'border-yellow-500/30 bg-yellow-500/5' :
+                                    'border-emerald-500/30 bg-emerald-500/5'
+                              }`}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -790,12 +780,11 @@ export default function Dashboard() {
                                   </Badge>
                                   <Badge
                                     variant="outline"
-                                    className={`text-xs ${
-                                      detection.severity === 'CRITICAL' ? 'border-red-500 text-red-500' :
-                                      detection.severity === 'HIGH' ? 'border-orange-500 text-orange-500' :
-                                      detection.severity === 'MEDIUM' ? 'border-yellow-500 text-yellow-500' :
-                                      'border-emerald-500 text-emerald-500'
-                                    }`}
+                                    className={`text-xs ${detection.severity === 'CRITICAL' ? 'border-red-500 text-red-500' :
+                                        detection.severity === 'HIGH' ? 'border-orange-500 text-orange-500' :
+                                          detection.severity === 'MEDIUM' ? 'border-yellow-500 text-yellow-500' :
+                                            'border-emerald-500 text-emerald-500'
+                                      }`}
                                   >
                                     {detection.severity}
                                   </Badge>
@@ -830,12 +819,11 @@ export default function Dashboard() {
                                 )}
                               </div>
                               <div className="text-right ml-4">
-                                <div className={`text-2xl font-bold ${
-                                  detection.verdict === 'MALICIOUS' || detection.verdict === 'FAKE' ? 'text-red-500' :
-                                  detection.verdict === 'HIGH_RISK' ? 'text-orange-500' :
-                                  detection.verdict === 'SUSPICIOUS' || detection.verdict === 'UNCERTAIN' ? 'text-yellow-500' :
-                                  'text-emerald-500'
-                                }`}>
+                                <div className={`text-2xl font-bold ${detection.verdict === 'MALICIOUS' || detection.verdict === 'FAKE' ? 'text-red-500' :
+                                    detection.verdict === 'HIGH_RISK' ? 'text-orange-500' :
+                                      detection.verdict === 'SUSPICIOUS' || detection.verdict === 'UNCERTAIN' ? 'text-yellow-500' :
+                                        'text-emerald-500'
+                                  }`}>
                                   {detection.score}
                                 </div>
                                 <div className="text-xs text-muted-foreground">Risk Score</div>
