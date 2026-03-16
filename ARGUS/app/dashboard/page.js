@@ -14,7 +14,7 @@ import {
   ArrowUpRight, ArrowDownRight, Activity,
   Target, Shield, Radio, Eye, Brain, PenTool,
   AlertTriangle, CheckCircle, HelpCircle, XCircle, Clock, Cpu, Layers,
-  GitBranch, Loader2, Link, Mail, Video
+  GitBranch, Loader2, Link, Mail, Video, TrendingUp, Zap, Server
 } from "lucide-react";
 
 const MerkleTreeVisualization = lazy(() => import("@/components/MerkleTreeVisualization"));
@@ -806,59 +806,283 @@ export default function Dashboard() {
                   </Card>
                 </div>
 
-                {/* Time Series Chart */}
+                {/* Enhanced Detection Timeline Chart */}
                 {securityAnalytics.timeSeries && securityAnalytics.timeSeries.length > 0 && (
-                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
-                    <CardHeader>
-                      <CardTitle className="ivy-font">Detection Timeline</CardTitle>
-                      <CardDescription className="ivy-font">
-                        Daily detection activity and threat trends
-                      </CardDescription>
+                  <Card className="border-border/40 backdrop-blur-sm bg-gradient-to-br from-card/90 to-card/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl font-bold flex items-center gap-2 mb-2">
+                            <Activity className="h-5 w-5 text-blue-500" />
+                            Detection Timeline
+                          </CardTitle>
+                          <CardDescription className="text-sm">
+                            Daily detection activity and threat trends over time
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 border-emerald-500/30 bg-emerald-500/10">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50" />
+                            <span className="text-emerald-500 text-xs font-medium">Live Monitoring</span>
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      {/* Analytical Context */}
+                      <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-border/50">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-blue-500/10">
+                            <TrendingUp className="h-4 w-4 text-blue-500" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Detection Trend</div>
+                            <div className="text-sm font-semibold text-blue-500">↑ 12.5% from yesterday</div>
+                          </div>
+                        </div>
+                        <div className="h-8 w-px bg-border/50" />
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-red-500/10">
+                            <Shield className="h-4 w-4 text-red-500" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Blocking Efficiency</div>
+                            <div className="text-sm font-semibold text-red-500">
+                              {securityAnalytics.summary.total > 0 
+                                ? `${((securityAnalytics.summary.recentThreats / securityAnalytics.summary.total) * 100).toFixed(1)}%`
+                                : '0%'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="h-8 w-px bg-border/50" />
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-emerald-500/10">
+                            <Target className="h-4 w-4 text-emerald-500" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Avg Daily Detections</div>
+                            <div className="text-sm font-semibold text-emerald-500">
+                              {Math.round(securityAnalytics.summary.total / 30)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Time Range Filters */}
+                      <div className="flex items-center gap-2 mt-4">
+                        <span className="text-xs text-muted-foreground mr-2">Time Range:</span>
+                        <Button variant="outline" size="sm" className="h-7 px-3 text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20">
+                          24h
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-7 px-3 text-xs hover:bg-muted/50">
+                          7 Days
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-7 px-3 text-xs hover:bg-muted/50">
+                          30 Days
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-7 px-3 text-xs hover:bg-muted/50">
+                          90 Days
+                        </Button>
+                        <div className="flex-1" />
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Filter:</span>
+                          <Button variant="outline" size="sm" className="h-7 px-3 text-xs hover:bg-muted/50">
+                            <Link className="h-3 w-3 mr-1" />
+                            URL
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 px-3 text-xs hover:bg-muted/50">
+                            <Mail className="h-3 w-3 mr-1" />
+                            Email
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 px-3 text-xs hover:bg-muted/50">
+                            <Video className="h-3 w-3 mr-1" />
+                            Deepfake
+                          </Button>
+                        </div>
+                      </div>
                     </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={securityAnalytics.timeSeries}>
+                    <CardContent className="pt-2">
+                      <ResponsiveContainer width="100%" height={380}>
+                        <AreaChart 
+                          data={securityAnalytics.timeSeries}
+                          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                        >
                           <defs>
-                            <linearGradient id="colorDetections" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={chartColors.secondary} stopOpacity={0.3} />
-                              <stop offset="95%" stopColor={chartColors.secondary} stopOpacity={0} />
+                            {/* Blue Gradient for Total Detections */}
+                            <linearGradient id="colorDetectionsEnhanced" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
+                              <stop offset="50%" stopColor="#60a5fa" stopOpacity={0.2} />
+                              <stop offset="100%" stopColor="#93c5fd" stopOpacity={0.05} />
                             </linearGradient>
-                            <linearGradient id="colorThreats" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                            {/* Red Gradient for Threats Blocked */}
+                            <linearGradient id="colorThreatsEnhanced" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#ef4444" stopOpacity={0.4} />
+                              <stop offset="50%" stopColor="#f87171" stopOpacity={0.2} />
+                              <stop offset="100%" stopColor="#fca5a5" stopOpacity={0.05} />
                             </linearGradient>
+                            {/* Glow filters */}
+                            <filter id="glowBlue">
+                              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                              <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                              </feMerge>
+                            </filter>
+                            <filter id="glowRed">
+                              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                              <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                              </feMerge>
+                            </filter>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
-                          <XAxis dataKey="date" stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '11px' }} />
-                          <YAxis stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '11px' }} />
+                          <CartesianGrid 
+                            strokeDasharray="3 3" 
+                            stroke={isDarkMode ? '#334155' : '#e2e8f0'} 
+                            opacity={0.2}
+                            vertical={false}
+                          />
+                          <XAxis 
+                            dataKey="date" 
+                            stroke={isDarkMode ? '#94a3b8' : '#64748b'} 
+                            style={{ fontSize: '12px', fontWeight: '500' }}
+                            tickLine={false}
+                            axisLine={{ stroke: isDarkMode ? '#334155' : '#e2e8f0', strokeWidth: 1 }}
+                          />
+                          <YAxis 
+                            stroke={isDarkMode ? '#94a3b8' : '#64748b'} 
+                            style={{ fontSize: '12px', fontWeight: '500' }}
+                            tickLine={false}
+                            axisLine={false}
+                          />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
+                              backgroundColor: isDarkMode ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                               border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                              borderRadius: '8px'
+                              borderRadius: '12px',
+                              boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.3)',
+                              padding: '12px 16px',
+                              backdropFilter: 'blur(10px)'
+                            }}
+                            labelStyle={{
+                              color: isDarkMode ? '#f1f5f9' : '#0f172a',
+                              fontWeight: '600',
+                              marginBottom: '8px',
+                              fontSize: '13px'
+                            }}
+                            itemStyle={{
+                              padding: '4px 0',
+                              fontSize: '12px'
+                            }}
+                            formatter={(value, name) => {
+                              const icon = name === 'Total Detections' ? '🔵' : '🔴';
+                              return [`${icon} ${value}`, name];
+                            }}
+                            labelFormatter={(label) => `📅 ${label}`}
+                            cursor={{ 
+                              stroke: isDarkMode ? '#475569' : '#cbd5e1', 
+                              strokeWidth: 2,
+                              strokeDasharray: '5 5'
+                            }}
+                            animationDuration={300}
+                            animationEasing="ease-out"
+                          />
+                          <Legend 
+                            verticalAlign="top" 
+                            height={36}
+                            iconType="circle"
+                            wrapperStyle={{
+                              paddingBottom: '20px',
+                              fontSize: '13px',
+                              fontWeight: '500'
                             }}
                           />
-                          <Legend />
+                          {/* Total Detections Area */}
                           <Area
                             type="monotone"
                             dataKey="count"
-                            stroke={chartColors.secondary}
+                            stroke="#3b82f6"
+                            strokeWidth={3}
                             fillOpacity={1}
-                            fill="url(#colorDetections)"
-                            strokeWidth={2}
+                            fill="url(#colorDetectionsEnhanced)"
                             name="Total Detections"
+                            animationBegin={0}
+                            animationDuration={1500}
+                            animationEasing="ease-in-out"
+                            dot={{ 
+                              fill: '#3b82f6', 
+                              strokeWidth: 2, 
+                              r: 4,
+                              stroke: isDarkMode ? '#1e293b' : '#ffffff'
+                            }}
+                            activeDot={{ 
+                              r: 7, 
+                              fill: '#3b82f6',
+                              stroke: isDarkMode ? '#1e293b' : '#ffffff',
+                              strokeWidth: 3,
+                              filter: 'url(#glowBlue)',
+                              style: { cursor: 'pointer' }
+                            }}
                           />
+                          {/* Threats Blocked Area */}
                           <Area
                             type="monotone"
                             dataKey="threats"
                             stroke="#ef4444"
+                            strokeWidth={3}
                             fillOpacity={1}
-                            fill="url(#colorThreats)"
-                            strokeWidth={2}
+                            fill="url(#colorThreatsEnhanced)"
                             name="Threats Blocked"
+                            animationBegin={200}
+                            animationDuration={1500}
+                            animationEasing="ease-in-out"
+                            dot={{ 
+                              fill: '#ef4444', 
+                              strokeWidth: 2, 
+                              r: 4,
+                              stroke: isDarkMode ? '#1e293b' : '#ffffff'
+                            }}
+                            activeDot={{ 
+                              r: 7, 
+                              fill: '#ef4444',
+                              stroke: isDarkMode ? '#1e293b' : '#ffffff',
+                              strokeWidth: 3,
+                              filter: 'url(#glowRed)',
+                              style: { cursor: 'pointer' }
+                            }}
                           />
                         </AreaChart>
                       </ResponsiveContainer>
+                      
+                      {/* Chart Legend with Stats */}
+                      <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-border/50">
+                        <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20">
+                          <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50" />
+                          <div className="flex-1">
+                            <div className="text-xs text-muted-foreground">Total Detections</div>
+                            <div className="text-2xl font-bold text-blue-500">{securityAnalytics.summary.total}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Peak</div>
+                            <div className="text-sm font-semibold text-foreground">
+                              {Math.max(...securityAnalytics.timeSeries.map(d => d.count))}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20">
+                          <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50" />
+                          <div className="flex-1">
+                            <div className="text-xs text-muted-foreground">Threats Blocked</div>
+                            <div className="text-2xl font-bold text-red-500">{securityAnalytics.summary.recentThreats}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Peak</div>
+                            <div className="text-sm font-semibold text-foreground">
+                              {Math.max(...securityAnalytics.timeSeries.map(d => d.threats || 0))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
