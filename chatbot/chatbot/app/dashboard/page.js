@@ -83,25 +83,11 @@ export default function Dashboard() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">Security Operations</Badge>
             <h1 className="mt-3 text-4xl font-bold text-foreground ivy-font">Prompt Injection Monitoring Dashboard</h1>
             <p className="mt-2 max-w-3xl text-muted-foreground ivy-font">
               Professional monitoring view of suspicious prompts, enforcement actions, and attribution details across the chatbot platform.
             </p>
           </div>
-          <Card className="border-border/40 bg-card/50 px-4 py-3 backdrop-blur-xl shadow-lg">
-            <div className="flex items-center gap-3">
-              <Shield className="h-5 w-5 text-emerald-400" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Visibility Scope</p>
-                <p className="text-xs text-muted-foreground">
-                  {summary?.scope === "global"
-                    ? "Global admin view across all chatbot users"
-                    : "Personal view. Configure ADMIN_EMAILS in .env.local for global monitoring access."}
-                </p>
-              </div>
-            </div>
-          </Card>
         </div>
 
         {loading ? (
@@ -203,7 +189,7 @@ export default function Dashboard() {
               </Card>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="grid gap-6">
               <Card className="border-border/40 bg-card/50 backdrop-blur-xl shadow-xl">
                 <CardHeader>
                   <CardTitle className="ivy-font">Recent Security Incidents</CardTitle>
@@ -246,31 +232,6 @@ export default function Dashboard() {
                       </ul>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/40 bg-card/50 backdrop-blur-xl shadow-xl">
-                <CardHeader>
-                  <CardTitle className="ivy-font">Operational Notes</CardTitle>
-                  <CardDescription className="ivy-font">Reference guidance for interpreting this dashboard in a production context.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4 text-sm text-muted-foreground">
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
-                    <p className="font-medium text-foreground">1. Event attribution</p>
-                    <p className="mt-2">Each event includes user identity, timestamp, and client IP to support triage, escalation, and forensic review.</p>
-                  </div>
-                  <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-                    <p className="font-medium text-foreground">2. Pre-model enforcement</p>
-                    <p className="mt-2">The detector evaluates user prompts before model generation. High-risk prompts are blocked and converted to safe educational responses.</p>
-                  </div>
-                  <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-4">
-                    <p className="font-medium text-foreground">3. Detection evidence</p>
-                    <p className="mt-2">Matched signals and detector reasons are stored alongside category, risk score, and policy action for transparent auditability.</p>
-                  </div>
-                  <div className="rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
-                    <p className="font-medium text-foreground">4. Access control</p>
-                    <p className="mt-2">Set <span className="font-mono text-foreground">ADMIN_EMAILS</span> in <span className="font-mono text-foreground">.env.local</span> to grant global monitoring access to authorized admins.</p>
-                  </div>
                 </CardContent>
               </Card>
             </div>

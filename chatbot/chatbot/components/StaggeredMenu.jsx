@@ -476,8 +476,46 @@ export const StaggeredMenu = ({
               className="sm-panel-list list-none m-0 p-0 flex flex-col gap-2"
               role="list"
               data-numbering={displayItemNumbering || undefined}>
-              {items && items.length ? (
-                items.map((it, idx) => {
+              { (() => {
+                // Compute items based on provided props and auth status
+                let processedItems = [];
+
+                if (items && items.length > 0) {
+                  // Filter out explicit login/profile items so we can manage them by auth state
+                  processedItems = items.filter(it => {
+                    const label = it.label.toLowerCase();
+                    if (label === 'login') return status === 'unauthenticated';
+                    if (label === 'profile' || label === 'logout' || label === 'dashboard') return status === 'authenticated';
+                    return true;
+                  });
+
+                  if (status === 'authenticated') {
+                    if (!processedItems.some(it => it.label.toLowerCase() === 'dashboard')) {
+                      // Insert Dashboard
+                      processedItems.push({ label: "Dashboard", link: "/dashboard", ariaLabel: "Dashboard" });
+                    }
+                  } else if (status === 'unauthenticated') {
+                    if (!processedItems.some(it => it.label.toLowerCase() === 'login')) {
+                      processedItems.push({ label: "Login", link: "/login", ariaLabel: "Login" });
+                    }
+                  }
+                } else {
+                  // Default fallback
+                  const baseItems = [
+                    { label: "Home", link: "/", ariaLabel: "Home" },
+                    { label: "Assistant", link: "/assistant", ariaLabel: "Assistant" }
+                  ];
+                  
+                  if (status === 'authenticated') {
+                    baseItems.push({ label: "Dashboard", link: "/dashboard", ariaLabel: "Dashboard" });
+                  } else if (status === 'unauthenticated') {
+                    baseItems.push({ label: "Login", link: "/login", ariaLabel: "Login" });
+                  }
+                  processedItems = baseItems;
+                }
+
+                return processedItems.length ? (
+                  processedItems.map((it, idx) => {
                   const isInternalRoute = it.link && (it.link.startsWith('/') && !it.link.startsWith('/#'));
                   const LinkComponent = isInternalRoute ? Link : 'a';
                   
@@ -485,13 +523,26 @@ export const StaggeredMenu = ({
                     <li
                       className="sm-panel-itemWrap relative overflow-hidden leading-none"
                       key={it.label + idx}>
+                      {it.isLogout ? (
+                        <button
+                          className="sm-panel-item relative text-red-500 font-semibold text-[4rem] cursor-pointer leading-none tracking-[-2px] uppercase transition-[background,color] duration-150 ease-linear inline-block no-underline pr-[1.4em] bg-transparent border-none text-left"
+                          aria-label={it.ariaLabel}
+                          data-index={idx + 1}
+                          onClick={() => {
+                            handleLogout();
+                          }}>
+                          <span
+                            className="sm-panel-itemLabel inline-block origin-[50%_100%] will-change-transform">
+                            {it.label}
+                          </span>
+                        </button>
+                      ) : (
                       <LinkComponent
                         className="sm-panel-item relative text-black dark:text-white font-semibold text-[4rem] cursor-pointer leading-none tracking-[-2px] uppercase transition-[background,color] duration-150 ease-linear inline-block no-underline pr-[1.4em]"
                         href={it.link}
                         aria-label={it.ariaLabel}
                         data-index={idx + 1}
                         onClick={() => {
-                          // Close menu when clicking any menu item
                           if (open) {
                             toggleMenu();
                           }
@@ -501,6 +552,7 @@ export const StaggeredMenu = ({
                           {it.label}
                         </span>
                       </LinkComponent>
+                      )}
                     </li>
                   );
                 })
@@ -516,60 +568,49 @@ export const StaggeredMenu = ({
                     </span>
                   </span>
                 </li>
-              )}
+              );
+              })()}
             </ul>
 
-            {/* Profile Dropdown - Only show if user is logged in */}
+            {/* Bottom Profile Widget */}
             {status === 'authenticated' && session?.user && (
-              <div
-                className="sm-auth-actions mt-auto pt-8"
-                aria-label="User actions">
+              <div className="mt-auto pt-8 border-t border-gray-200 dark:border-gray-800">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all duration-200 border border-border hover:border-emerald-500/40 group">
-                      <div className="p-2 rounded-full bg-muted group-hover:bg-emerald-500/10 transition-colors">
-                        <UserIcon className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                    <button className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors text-left group border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-[#5227FF] to-[#B19EEF] flex items-center justify-center text-white text-lg font-bold shadow-sm shrink-0">
+                        {session.user.name ? session.user.name.charAt(0).toUpperCase() : <UserIcon size={20} />}
                       </div>
-                      <div className="flex-1 text-left">
-                        <p className="text-sm font-semibold text-foreground">Profile</p>
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{session.user.email}</p>
+                      <div className="flex-1 overflow-hidden">
+                        <div className="font-semibold text-gray-900 dark:text-white truncate">
+                          {session.user.name || "User Account"}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                          {session.user.email}
+                        </div>
                       </div>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      <ChevronDown className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 transition-colors shrink-0" size={18} />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent 
-                    align="end" 
-                    className="w-56 bg-card/95 backdrop-blur-sm border-border/40"
-                    sideOffset={8}
-                  >
-                    <DropdownMenuLabel className="ivy-font">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{session.user.name}</p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                          {session.user.email}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href="/profile"
-                        onClick={() => {
-                          if (open) toggleMenu();
-                        }}
-                        className="flex items-center cursor-pointer ivy-font"
-                      >
-                        <UserIcon className="mr-2 h-4 w-4" />
-                        <span>View Profile</span>
+                  <DropdownMenuContent align="end" className="w-[calc(100%-4em)] z-[60] bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-xl p-2 shadow-2xl border-gray-200 dark:border-gray-700">
+                    <DropdownMenuLabel className="font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-xs px-2 py-1.5">My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-800 my-1" />
+                    
+                    <DropdownMenuItem asChild className="rounded-lg cursor-pointer focus:bg-gray-100 dark:focus:bg-gray-800">
+                      <Link href="/profile" className="w-full flex items-center py-2.5 px-2" onClick={() => { if (open) toggleMenu(); }}>
+                        <UserIcon className="mr-3 h-4 w-4" />
+                        <span className="font-medium">Profile Settings</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleLogout}
-                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 focus:bg-red-500/10 cursor-pointer ivy-font"
+
+                    <DropdownMenuItem 
+                      className="rounded-lg cursor-pointer text-red-500 dark:text-red-400 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-900/20 dark:focus:text-red-300 mt-1"
+                      onClick={() => handleLogout()}
                     >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Logout</span>
+                      <div className="flex items-center w-full py-2.5 px-2">
+                        <LogOut className="mr-3 h-4 w-4" />
+                        <span className="font-medium">Log out</span>
+                      </div>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

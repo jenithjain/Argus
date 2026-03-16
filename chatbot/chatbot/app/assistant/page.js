@@ -38,7 +38,7 @@ const STARTER = {
   id: "starter-assistant",
   role: "assistant",
   content:
-    "I am ARGUS Security Assistant. Ask about AI safety, prompt injection, phishing awareness, or defensive cybersecurity.",
+    "I am the ARGUS Assistant. How can I help you today?",
   timestamp: new Date(0).toISOString(),
   riskScore: 0,
   riskSeverity: "low",
@@ -254,17 +254,7 @@ export default function Assistant() {
                   <Plus className="mr-2 h-4 w-4" />
                   New chat
                 </Button>
-                <div className="rounded-3xl border border-border/40 bg-background/40 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400">
-                      <Shield className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">ARGUS Security Assistant</p>
-                      <p className="text-xs text-muted-foreground">Gemini-powered cybersecurity education chatbot</p>
-                    </div>
-                  </div>
-                </div>
+                
                 <div className="space-y-2">
                   <p className="px-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">Private history</p>
                   {sessions.length ? sessions.map((session) => (
@@ -307,8 +297,8 @@ export default function Assistant() {
                           <Sparkles className="h-5 w-5" />
                         </div>
                         <div>
-                          <h1 className="text-2xl font-semibold text-foreground">ARGUS Security Assistant</h1>
-                          <p className="text-sm text-muted-foreground">Educational chatbot with live prompt-injection detection, enforcement, and audit logging</p>
+                          <h1 className="text-2xl font-semibold text-foreground">ARGUS Assistant</h1>
+                          <p className="text-sm text-muted-foreground">General-purpose AI assistant</p>
                         </div>
                       </div>
                     </div>
@@ -362,16 +352,6 @@ export default function Assistant() {
                               </div>
                               <div className={`flex flex-wrap gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
                                 <span className="text-xs text-muted-foreground">{formatTime(message.timestamp)}</span>
-                                {message.role === "user" && (
-                                  <Badge variant="outline" className={severityClasses(message.riskSeverity)}>
-                                    {message.riskSeverity} · {message.riskAction}
-                                  </Badge>
-                                )}
-                                {message.role === "user" && message.matchedSignals?.[0] && (
-                                  <Badge variant="outline" className="border-orange-500/30 bg-orange-500/10 text-orange-300">
-                                    {message.matchedSignals[0].replace(/_/g, " ")}
-                                  </Badge>
-                                )}
                               </div>
                             </div>
                             {isUser && (
@@ -390,7 +370,7 @@ export default function Assistant() {
                           <div className="rounded-[28px] border border-border/40 bg-background/70 px-4 py-3 text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              Scoring prompt and generating safe response...
+                              Thinking...
                             </div>
                           </div>
                         </div>
@@ -406,8 +386,8 @@ export default function Assistant() {
                           onKeyDown={onKeyDown}
                           rows={3}
                           placeholder={mode === "public"
-                            ? "Ask in the shared classroom. Everyone can see the chat and the detector results."
-                            : "Message ARGUS Security Assistant..."
+                            ? "Ask in the shared room. Everyone can see the chat."
+                            : "Message ARGUS Assistant..."
                           }
                           className="min-h-[96px] resize-none border-0 bg-transparent p-2 shadow-none focus-visible:ring-0"
                         />
@@ -443,58 +423,6 @@ export default function Assistant() {
                             <span>{publicRoom.title}</span>
                           </div>
                         )}
-                      </div>
-
-                      <div className="rounded-3xl border border-border/40 bg-background/50 p-4">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                          <AlertTriangle className="h-4 w-4 text-amber-400" />
-                          Latest detector output
-                        </div>
-                        {activeAnalysis ? (
-                          <div className="mt-3 space-y-3 text-sm">
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="outline" className={severityClasses(activeAnalysis.severity)}>
-                                {activeAnalysis.severity}
-                              </Badge>
-                              <Badge variant="outline" className="border-border/40">score {activeAnalysis.score}</Badge>
-                              <Badge variant="outline" className="border-border/40">{activeAnalysis.action}</Badge>
-                            </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Category</p>
-                              <p className="mt-1 text-foreground">{activeAnalysis.category.replace(/_/g, " ")}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Signals</p>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {activeAnalysis.matchedSignals.length ? activeAnalysis.matchedSignals.map((signal) => (
-                                  <Badge key={signal} variant="outline" className="border-orange-500/30 bg-orange-500/10 text-orange-300">
-                                    {signal.replace(/_/g, " ")}
-                                  </Badge>
-                                )) : <span className="text-muted-foreground">No suspicious signals.</span>}
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Reasons</p>
-                              <ul className="mt-2 space-y-1 text-muted-foreground">
-                                {activeAnalysis.reasons.map((reason) => (
-                                  <li key={reason}>• {reason}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="mt-3 text-sm text-muted-foreground">Send a prompt to see how the detector scored it.</p>
-                        )}
-                      </div>
-
-                      <div className="rounded-3xl border border-border/40 bg-background/50 p-4 text-sm text-muted-foreground">
-                        <p className="font-medium text-foreground">Security review workflow</p>
-                        <ol className="mt-3 space-y-2">
-                          <li>1. Sign in with two accounts.</li>
-                          <li>2. Use Shared classroom to create visible multi-user traffic.</li>
-                          <li>3. Send both benign and suspicious prompts.</li>
-                          <li>4. Open Dashboard to review event details, policy actions, and IP attribution.</li>
-                        </ol>
                       </div>
                     </div>
                   </div>
