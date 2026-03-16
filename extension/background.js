@@ -2,10 +2,17 @@
 // Handles: deepfake detection, URL scanning (Gemini AI), email phishing alerts, context engine
 'use strict';
 
+console.log('[ARGUS BG] ========================================');
+console.log('[ARGUS BG] Background service worker STARTING...');
+console.log('[ARGUS BG] ========================================');
+
 const DEFAULT_BACKEND    = 'http://localhost:5000';
 const GEMINI_PROXY_URL   = 'http://localhost:3000/api'; // Next.js backend proxies Gemini
 const BLOCKED_PAGE       = chrome.runtime.getURL('blocked.html');
 const ANALYZING_PAGE     = chrome.runtime.getURL('analyzing.html');
+
+console.log('[ARGUS BG] Constants initialized');
+console.log('[ARGUS BG] GEMINI_PROXY_URL:', GEMINI_PROXY_URL);
 
 let activeDetectionTabId = null;
 const autoStartCooldownByTab = new Map();
@@ -499,6 +506,8 @@ async function maybeAutoStartDeepfake(tabId) {
 // ─── Message Router ──────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[ARGUS BG] Received message:', message.action, 'from tab:', sender?.tab?.id);
+  
   switch (message.action) {
     case 'startDetection':
       handleStartDetection(message.tabId, sendResponse);
@@ -547,6 +556,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // Forward to popup (if open)
       chrome.runtime.sendMessage(message).catch(() => {});
       break;
+    case 'logEmailScan':
+      console.log('[ARGUS BG] logEmailScan received, calling handler...');
+      // Content script cannot fetch localhost — handle logging here in the SW
+      handleLogEmailScan(message).then(result => {
+        console.log('[ARGUS BG] logEmailScan handler completed:', result);
+        sendResponse({ ok: true, result });
+      }).catch(err => {
+        console.error('[ARGUS BG] logEmailScan handler failed:', err.message);
+        sendResponse({ ok: false, error: err.message });
+      });
+      return true;
+    case 'sendInteraction':
+      // content-interaction-tracker.js routes through here to avoid CORS loopback block
+      handleSendInteraction(message.data).catch(err =>
+        console.warn('[ARGUS Interaction] send failed:', err.message)
+      );
+      sendResponse({ ok: true });
+      return true;
     case 'videoPlaybackDetected':
       if (sender?.tab?.id && !manuallyStoppedTabs.has(sender.tab.id) && activeDetectionTabId !== sender.tab.id) {
         maybeAutoStartDeepfake(sender.tab.id);
@@ -699,5 +726,66 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   manuallyStoppedTabs.delete(tabId);
   analyzingTabs.delete(tabId);
 });
+
+// ─── Email Scan Logger ────────────────────────────────────────────────────────
+// Background SW can reach localhost; content scripts cannot (Chrome CORS policy).
+
+async function handleLogEmailScan({ sender, subject, verdict, score, reason, signals, links }) {
+  try {
+    console.log('[ARGUS Email] Logging email scan to database:', { sender, subject, verdict, score, reason });
+    
+    const payload = { 
+      sender: String(sender || 'Unknown').slice(0, 200), 
+      subject: String(subject || 'No Subject').slice(0, 300), 
+      verdict: String(verdict || 'CLEAR'), 
+      score: Number(score) || 0, 
+      reason: String(reason || 'No reason provided').slice(0, 300), 
+      signals: Array.isArray(signals) ? signals : [],
+      links: Array.isArray(links) ? links : []
+    };
+    
+    console.log('[ARGUS Email] Sending payload:', JSON.stringify(payload, null, 2));
+    
+    const response = await fetch(`${GEMINI_PROXY_URL}/analyze-email`, {
+      method:  'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    console.log('[ARGUS Email] Response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[ARGUS Email] API error response:', errorText);
+      throw new Error(`API returned ${response.status}: ${errorText}`);
+    }
+    
+    const result = await response.json();
+    console.log('[ARGUS Email] Successfully logged to database:', result);
+    return result;
+  } catch (err) {
+    console.error('[ARGUS Email] Failed to log email scan:', err.message);
+    console.error('[ARGUS Email] Error stack:', err.stack);
+    throw err;
+  }
+}
+
+// ─── Interaction Proxy ────────────────────────────────────────────────────────
+// Proxies POST /api/interaction on behalf of content scripts (loopback CORS fix)
+
+async function handleSendInteraction(data) {
+  try {
+    await fetch(`${GEMINI_PROXY_URL}/interaction`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
+    });
+  } catch (err) {
+    console.warn('[ARGUS Interaction] Could not POST /api/interaction:', err.message);
+  }
+}
 
 console.log('[ARGUS] Background service worker v2 loaded — URL scanner, deepfake, email shield active');

@@ -8,7 +8,8 @@ const SecurityAnalyticsSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false,
+    default: null,
     index: true
   },
   
@@ -136,5 +137,9 @@ SecurityAnalyticsSchema.index({ userId: 1, detectionType: 1, detectedAt: -1 });
 SecurityAnalyticsSchema.index({ userId: 1, verdict: 1 });
 SecurityAnalyticsSchema.index({ userId: 1, severity: 1 });
 SecurityAnalyticsSchema.index({ sessionId: 1, detectedAt: -1 });
+
+if (process.env.NODE_ENV !== 'production' && mongoose.models.SecurityAnalytics) {
+  delete mongoose.models.SecurityAnalytics;
+}
 
 export default mongoose.models.SecurityAnalytics || mongoose.model('SecurityAnalytics', SecurityAnalyticsSchema);

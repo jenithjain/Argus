@@ -18,6 +18,7 @@ export async function GET(request) {
     const type = searchParams.get('type') || 'all';
     const days = parseInt(searchParams.get('days') || '30');
     const limit = parseInt(searchParams.get('limit') || '100');
+    const tzOffset = parseInt(searchParams.get('tzOffset') || '0');
 
     await connectDB();
 
@@ -73,7 +74,9 @@ export async function GET(request) {
     // Time series data (group by day)
     const timeSeriesMap = {};
     analytics.forEach(a => {
-      const day = new Date(a.detectedAt).toISOString().split('T')[0];
+      const detectedAt = new Date(a.detectedAt);
+      const localTime = new Date(detectedAt.getTime() - tzOffset * 60000);
+      const day = localTime.toISOString().split('T')[0];
       if (!timeSeriesMap[day]) {
         timeSeriesMap[day] = { date: day, count: 0, threats: 0 };
       }

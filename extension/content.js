@@ -1,4 +1,4 @@
-// Content script for capturing tab content and displaying overlay
+﻿// Content script for capturing tab content and displaying overlay
 // ARGUS v2 Content Script — deepfake capture + email scanning + inline URL badges
 'use strict';
 
@@ -111,7 +111,7 @@ function detectPhishingKeywords(text) {
 
 // Fully synchronous — no network calls, no message round-trips.
 // Result is available in < 1ms.
-function scanEmailContent(rootEl) {
+function scanEmailContent(rootEl, fingerprint) {
   const bodyText = (rootEl.innerText || rootEl.textContent || '').slice(0, 8000);
   const links    = extractEmailLinks(rootEl);
   const kwHits   = detectPhishingKeywords(bodyText);
@@ -153,7 +153,7 @@ function scanEmailContent(rootEl) {
   }
 
   // Report to popup instantly — no await, no delay
-  chrome.runtime.sendMessage({
+  safeSendRuntimeMessage({
     action: 'emailScanResult',
     result: {
       threats:    totalThreats,
@@ -163,12 +163,81 @@ function scanEmailContent(rootEl) {
     },
   });
 
+  // Log to ARGUS dashboard via background service worker
+  // (Content scripts cannot fetch localhost directly — route through background)
+  try {
+    if (isDuplicateEmailLog(fingerprint, summary)) {
+      return;
+    }
+    const senderEl   = document.querySelector('[email], [data-hovercard-id], .gD, .go');
+    const subjectEl  = document.querySelector('h2[data-thread-perm-id], .hP, [data-legacy-message-id] h2');
+    const sender     = (senderEl && (senderEl.getAttribute('email') || senderEl.textContent)) || document.title || 'Unknown Sender';
+    const subject    = (subjectEl && subjectEl.textContent) || document.title || 'No Subject';
+    const topReason  = malicious[0]?.reason || suspicious[0]?.reason ||
+                       (kwHits.length ? `Phishing keywords: ${kwHits.slice(0,3).join(', ')}` : 'No threats detected');
+    const topScore   = malicious[0]?.score ?? suspicious[0]?.score ?? 0;
+    const topVerdict = malicious.length  ? 'MALICIOUS' :
+                       suspicious.length ? 'SUSPICIOUS' :
+                       kwHits.length >= 3 ? 'SUSPICIOUS' : 'CLEAR';
+
+    const logData = {
+      action:  'logEmailScan',
+      sender:  String(sender).trim().slice(0, 200),
+      subject: String(subject).trim().slice(0, 300),
+      verdict: String(topVerdict),
+      score:   Math.min(Math.max(0, Number(topScore) || 0), 100),
+      reason:  String(topReason).slice(0, 300),
+      links:   links.map(l => l.href).slice(0, 20),
+      signals: [
+        `${links.length} links found`,
+        malicious.length  ? `${malicious.length} malicious link(s)` : null,
+        suspicious.length ? `${suspicious.length} suspicious link(s)` : null,
+        kwHits.length     ? `${kwHits.length} phishing keyword(s)` : null,
+      ].filter(Boolean),
+    };
+
+    console.log('[ARGUS Email] Sending log data to background:', JSON.stringify(logData, null, 2));
+    
+    safeSendRuntimeMessage(logData, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('[ARGUS Email] Failed to send log to background:', chrome.runtime.lastError.message);
+      } else {
+        console.log('[ARGUS Email] Background acknowledged log:', response);
+      }
+    });
+  } catch (err) { 
+    console.error('[ARGUS Email] Error preparing log data:', err.message);
+    console.error('[ARGUS Email] Error stack:', err.stack);
+  }
+
   // Show email capsule if threats detected
   if (totalThreats > 0) {
     showEmailCapsule(totalThreats, summary, malicious.length > 0 ? 'danger' : 'warning');
   } else {
     // Hide capsule if no threats
     hideEmailCapsule();
+  }
+}
+
+function isDuplicateEmailLog(fingerprint, summary) {
+  if (!fingerprint) return false;
+  const now = Date.now();
+  const last = state.lastEmailLog;
+  if (last && last.fingerprint === fingerprint && now - last.at < 20000) {
+    return true;
+  }
+  state.lastEmailLog = { fingerprint, summary, at: now };
+  return false;
+}
+
+function safeSendRuntimeMessage(message, callback) {
+  try {
+    if (!chrome?.runtime?.id) return false;
+    chrome.runtime.sendMessage(message, callback);
+    return true;
+  } catch (error) {
+    console.warn('[ARGUS] Runtime message failed:', error.message);
+    return false;
   }
 }
 
@@ -439,7 +508,7 @@ function tryInitialEmailScan() {
   if (!state.emailScanned) {
     state.emailScanned = true;
     _lastEmailFingerprint = fingerprint;
-    scanEmailContent(emailRoot); // synchronous — result reported instantly
+    scanEmailContent(emailRoot, fingerprint); // synchronous — result reported instantly
     // Unlock re-scan after 3 s so switching emails triggers a fresh scan quickly
     setTimeout(() => { state.emailScanned = false; }, 3000);
   }

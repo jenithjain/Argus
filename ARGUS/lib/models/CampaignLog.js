@@ -12,7 +12,8 @@ const CampaignLogSchema = new mongoose.Schema({
   name: {
     type: String,
     default: function() {
-      return `Campaign ${this.campaignId.slice(-8)}`;
+      const id = this?.campaignId;
+      return id ? `Campaign ${String(id).slice(-8)}` : 'Campaign';
     }
   },
   status: {

@@ -56,42 +56,81 @@ async function resolveDNS(domain) {
   }
 }
 
-// IP Geolocation using free API
-async function geolocateIP(ipAddress) {
+async function fetchJsonWithTimeout(url, timeoutMs = 4000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    // Use ip-api.com free API (no key required, 45 requests/minute)
-    const response = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,country,regionName,city,lat,lon,timezone`);
-    
-    if (!response.ok) {
-      throw new Error('Geolocation API failed');
-    }
-    
-    const data = await response.json();
-    
-    if (data.status === 'success') {
-      return {
-        country: data.country || 'Unknown',
-        region: data.regionName || 'Unknown',
-        city: data.city || 'Unknown',
-        latitude: data.lat || null,
-        longitude: data.lon || null,
-        timezone: data.timezone || 'Unknown',
-      };
-    }
-    
-    throw new Error('Geolocation failed');
-  } catch (error) {
-    console.warn('[GeoIP] Lookup failed:', error.message);
-    // Return mock data for demo
-    return {
-      country: 'United States',
-      region: 'California',
-      city: 'San Francisco',
-      latitude: 37.7749,
-      longitude: -122.4194,
-      timezone: 'America/Los_Angeles',
-    };
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+// IP Geolocation using free APIs with fallback
+async function geolocateIP(ipAddress) {
+  const providers = [
+    {
+      name: 'ip-api',
+      url: `https://ip-api.com/json/${ipAddress}?fields=status,country,regionName,city,lat,lon,timezone,message`,
+      map: (data) => {
+        if (!data || data.status !== 'success') return null;
+        return {
+          country: data.country || 'Unknown',
+          region: data.regionName || 'Unknown',
+          city: data.city || 'Unknown',
+          latitude: data.lat || null,
+          longitude: data.lon || null,
+          timezone: data.timezone || 'Unknown',
+        };
+      },
+    },
+    {
+      name: 'ipapi',
+      url: `https://ipapi.co/${ipAddress}/json/`,
+      map: (data) => {
+        if (!data || data.error) return null;
+        return {
+          country: data.country_name || 'Unknown',
+          region: data.region || 'Unknown',
+          city: data.city || 'Unknown',
+          latitude: data.latitude || null,
+          longitude: data.longitude || null,
+          timezone: data.timezone || 'Unknown',
+        };
+      },
+    },
+    {
+      name: 'ipinfo',
+      url: `https://ipinfo.io/${ipAddress}/json`,
+      map: (data) => {
+        if (!data || data.error) return null;
+        const loc = typeof data.loc === 'string' ? data.loc.split(',') : [];
+        return {
+          country: data.country || 'Unknown',
+          region: data.region || 'Unknown',
+          city: data.city || 'Unknown',
+          latitude: loc[0] ? Number(loc[0]) : null,
+          longitude: loc[1] ? Number(loc[1]) : null,
+          timezone: data.timezone || 'Unknown',
+        };
+      },
+    },
+  ];
+
+  for (const provider of providers) {
+    const data = await fetchJsonWithTimeout(provider.url);
+    const mapped = provider.map(data);
+    if (mapped) return mapped;
+    if (data && data.message) {
+      console.warn(`[GeoIP] ${provider.name} lookup failed:`, data.message);
+    }
+  }
+
+  return null;
 }
 
 // Hosting provider detection (simplified)

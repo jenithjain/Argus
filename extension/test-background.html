@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test ARGUS Background Script</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #000;
+            border: 1px solid #00ff00;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>ARGUS Background Script Tester</h1>
+    <p>This page tests if the background script is responding to messages.</p>
+    
+    <button onclick="testLogEmailScan()">Test Email Log</button>
+    <button onclick="clearOutput()">Clear Output</button>
+    
+    <div id="output"></div>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+        }
+
+        async function testLogEmailScan() {
+            log('Sending logEmailScan message to background script...');
+            
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'logEmailScan',
+                    sender: 'test@example.com',
+                    subject: 'Test Email from Test Page',
+                    verdict: 'SUSPICIOUS',
+                    score: 75,
+                    reason: 'Test reason from test page',
+                    signals: ['Test signal 1', 'Test signal 2']
+                });
+                
+                log('Response received: ' + JSON.stringify(response, null, 2));
+                
+                if (response.ok) {
+                    log('✅ SUCCESS: Email log sent to background script');
+                } else {
+                    log('❌ ERROR: ' + (response.error || 'Unknown error'));
+                }
+            } catch (error) {
+                log('❌ EXCEPTION: ' + error.message);
+                log('This usually means the background script is not running or crashed');
+            }
+        }
+
+        // Test on load
+        log('Test page loaded');
+        log('Extension ID: ' + chrome.runtime.id);
+        log('Click "Test Email Log" button to test the background script');
+    </script>
+</body>
+</html>

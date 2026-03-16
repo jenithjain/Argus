@@ -27,29 +27,43 @@ export async function upsertUser(userId, metadata = {}) {
 
 // Insert interaction event
 export async function createInteraction(userId, domain, interactionData) {
+  const timestamp = interactionData.timestamp || new Date().toISOString();
+  const url = interactionData.url || '';
+  const title = interactionData.title || '';
+  const hasLoginForm = Boolean(interactionData.hasLoginForm);
+  const bucket = Math.floor(new Date(timestamp).getTime() / 30000);
+  const interactionKey = `${userId}|${domain}|${url}|${bucket}`;
+
   const query = `
     MATCH (u:User {id: $userId})
     MERGE (d:Domain {name: $domain})
-    CREATE (i:InteractionEvent {
-      id: randomUUID(),
-      timestamp: datetime($timestamp),
-      url: $url,
-      title: $title,
-      hasLoginForm: $hasLoginForm
-    })
-    CREATE (u)-[:VISITED]->(d)
-    CREATE (u)-[:PERFORMED]->(i)
-    CREATE (i)-[:ON_DOMAIN]->(d)
+    MERGE (i:InteractionEvent {key: $interactionKey})
+    ON CREATE SET
+      i.id = randomUUID(),
+      i.timestamp = datetime($timestamp),
+      i.url = $url,
+      i.title = $title,
+      i.hasLoginForm = $hasLoginForm,
+      i.firstSeen = datetime(),
+      i.lastSeen = datetime(),
+      i.hitCount = 1
+    ON MATCH SET
+      i.lastSeen = datetime(),
+      i.hitCount = coalesce(i.hitCount, 1) + 1
+    MERGE (u)-[:VISITED]->(d)
+    MERGE (u)-[:PERFORMED]->(i)
+    MERGE (i)-[:ON_DOMAIN]->(d)
     RETURN i, d
   `;
 
   const result = await runQuery(query, {
     userId,
     domain,
-    timestamp: interactionData.timestamp || new Date().toISOString(),
-    url: interactionData.url || '',
-    title: interactionData.title || '',
-    hasLoginForm: interactionData.hasLoginForm || false,
+    interactionKey,
+    timestamp,
+    url,
+    title,
+    hasLoginForm,
   });
 
   // Save to MongoDB
@@ -238,6 +252,52 @@ export async function enrichAndInsertDomain(domain) {
   }
 }
 
+// Attach email context to a campaign and referenced domains
+export async function attachEmailToCampaign({ campaignId, emailId, sender, subject, verdict, score, reason, linkDomains }) {
+  if (!campaignId || !emailId) return null;
+  const domains = Array.isArray(linkDomains) ? linkDomains.filter(Boolean).slice(0, 20) : [];
+
+  const query = `
+    MERGE (c:AttackCampaign {id: $campaignId})
+    ON CREATE SET
+      c.status = 'active',
+      c.detectedAt = datetime(),
+      c.source = 'email'
+    ON MATCH SET
+      c.lastUpdated = datetime()
+    MERGE (e:Email {id: $emailId})
+    ON CREATE SET
+      e.sender = $sender,
+      e.subject = $subject,
+      e.verdict = $verdict,
+      e.score = $score,
+      e.reason = $reason,
+      e.createdAt = datetime()
+    MERGE (e)-[:PART_OF]->(c)
+    WITH c, e
+    UNWIND $domains as domainName
+    MERGE (d:Domain {name: domainName})
+    MERGE (e)-[:MENTIONS]->(d)
+    MERGE (d)-[:PART_OF]->(c)
+    WITH c
+    MATCH (c)<-[:PART_OF]-(d:Domain)
+    WITH c, count(DISTINCT d) as domainCount
+    SET c.domainCount = domainCount
+    RETURN c
+  `;
+
+  return await runQuery(query, {
+    campaignId,
+    emailId,
+    sender: String(sender || 'Unknown').slice(0, 200),
+    subject: String(subject || 'No Subject').slice(0, 300),
+    verdict: String(verdict || 'CLEAR'),
+    score: Number(score) || 0,
+    reason: String(reason || '').slice(0, 300),
+    domains,
+  });
+}
+
 // Flag domain as threat
 export async function flagDomainAsThreat(domain, threatType, severity, reason, userId = null, userEmail = null) {
   const query = `
@@ -380,7 +440,9 @@ export async function detectCampaigns() {
           })
         );
 
-        const avgRiskScore = domainScores.reduce((sum, d) => sum + d.riskScore, 0) / domainScores.length;
+        const avgRiskScore = domainScores.length
+          ? domainScores.reduce((sum, d) => sum + d.riskScore, 0) / domainScores.length
+          : 0;
         const overallSeverity = avgRiskScore >= 70 ? 'critical' 
           : avgRiskScore >= 50 ? 'high'
           : avgRiskScore >= 30 ? 'medium' : 'low';
@@ -408,6 +470,7 @@ export async function detectCampaigns() {
           { campaignId: clusterId },
           {
             campaignId: clusterId,
+            name: `Campaign ${String(clusterId).slice(-8)}`,
             status: 'active',
             domains: domainScores.map(d => ({
               domain: d.domain,

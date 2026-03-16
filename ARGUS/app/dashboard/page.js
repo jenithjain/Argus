@@ -1,86 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ComposedChart, Scatter
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart
 } from "recharts";
 import {
-  ArrowUpRight, ArrowDownRight, BookOpen, TrendingUp,
-  Users, Activity, GitBranch, FileText, Sparkles, Brain,
-  PenTool, Target, Network, Shield, Radio, Eye, Zap,
+  ArrowUpRight, ArrowDownRight, Activity, 
+  Target, Shield, Radio, Eye, Brain, PenTool,
   AlertTriangle, CheckCircle, HelpCircle, XCircle, Clock, Cpu, Layers
 } from "lucide-react";
-
-// Threat Detection Data
-const progressData = [
-  { chapter: "S1", wordCount: 4500, targetCount: 5000, completion: 90 },
-  { chapter: "S2", wordCount: 5200, targetCount: 5000, completion: 100 },
-  { chapter: "S3", wordCount: 4800, targetCount: 5000, completion: 96 },
-  { chapter: "S4", wordCount: 6100, targetCount: 5000, completion: 100 },
-  { chapter: "S5", wordCount: 5500, targetCount: 5000, completion: 100 },
-  { chapter: "S6", wordCount: 6700, targetCount: 5000, completion: 100 },
-  { chapter: "S7", wordCount: 7200, targetCount: 5000, completion: 100 },
-  { chapter: "S8", wordCount: 6900, targetCount: 5000, completion: 100 },
-  { chapter: "S9", wordCount: 3200, targetCount: 5000, completion: 64 },
-  { chapter: "S10", wordCount: 0, targetCount: 5000, completion: 0 },
-  { chapter: "S11", wordCount: 0, targetCount: 5000, completion: 0 },
-  { chapter: "S12", wordCount: 0, targetCount: 5000, completion: 0 },
-];
-
-const characterActivityData = [
-  { name: "Phishing", appearances: 28, dialogueLines: 284, arcProgress: 85 },
-  { name: "Malware", appearances: 22, dialogueLines: 223, arcProgress: 72 },
-  { name: "Social Eng.", appearances: 18, dialogueLines: 182, arcProgress: 68 },
-  { name: "Data Exfil.", appearances: 15, dialogueLines: 151, arcProgress: 55 },
-];
-
-const storyElementsData = [
-  { id: 1, type: "Phishing", element: "Credential harvesting on login page", status: "Active", chapters: "Session 1-9" },
-  { id: 2, type: "Malware", element: "Suspicious download redirect", status: "Active", chapters: "Session 1-9" },
-  { id: 3, type: "Social Engineering", element: "Fake tech support popup", status: "Active", chapters: "Session 3-9" },
-  { id: 4, type: "Phishing", element: "Spoofed banking domain", status: "Resolved", chapters: "Session 1-7" },
-  { id: 5, type: "Data Exfiltration", element: "Unauthorized form submission", status: "Active", chapters: "Session 2-9" },
-  { id: 6, type: "Malware", element: "Drive-by download attempt", status: "Active", chapters: "Session 5-9" },
-  { id: 7, type: "Credential Theft", element: "Password field on HTTP page", status: "Active", chapters: "Session 2-9" },
-  { id: 8, type: "Phishing", element: "Lookalike domain detected", status: "Active", chapters: "Session 1-9" },
-];
-
-const timelineData = [
-  { chapter: "S1", events: 12, characters: 4 },
-  { chapter: "S2", events: 13, characters: 5 },
-  { chapter: "S3", events: 14, characters: 5 },
-  { chapter: "S4", events: 14, characters: 6 },
-  { chapter: "S5", events: 15, characters: 6 },
-  { chapter: "S6", events: 14, characters: 7 },
-  { chapter: "S7", events: 16, characters: 7 },
-  { chapter: "S8", events: 17, characters: 8 },
-  { chapter: "S9", events: 16, characters: 8 },
-  { chapter: "S10", events: 0, characters: 0 },
-];
-
-const storyHealthData = [
-  { metric: "Phishing Detection", value: 95, fullMark: 100 },
-  { metric: "Malware Coverage", value: 88, fullMark: 100 },
-  { metric: "Module Response Time", value: 92, fullMark: 100 },
-  { metric: "False Positive Rate", value: 85, fullMark: 100 },
-  { metric: "Context Accuracy", value: 78, fullMark: 100 },
-  { metric: "Defense Score", value: 91, fullMark: 100 },
-];
-
-const chapterStatsData = [
-  { chapter: "Q1", wordsWritten: 18000, targetWords: 20000, revisions: 6 },
-  { chapter: "Q2", wordsWritten: 21000, targetWords: 20000, revisions: 7 },
-  { chapter: "Q3", wordsWritten: 24500, targetWords: 20000, revisions: 9 },
-  { chapter: "Q4", wordsWritten: 28000, targetWords: 20000, revisions: 11 },
-];
 
 const CHART_COLORS = {
   light: {
@@ -200,7 +134,8 @@ export default function Dashboard() {
     const fetchAnalytics = async () => {
       try {
         setAnalyticsLoading(true);
-        const response = await fetch('/api/security-analytics?days=30&limit=100');
+        const tzOffset = new Date().getTimezoneOffset();
+        const response = await fetch(`/api/security-analytics?days=30&limit=100&tzOffset=${tzOffset}`);
         const data = await response.json();
         if (data.success) {
           setSecurityAnalytics(data);
@@ -253,7 +188,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen w-full">
+    <div className="min-h-screen w-full overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50">
       <div className="container mx-auto p-6 space-y-8 max-w-7xl">
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -279,524 +214,47 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title="Threats Detected"
-            value="1,247"
-            change="+15.2%"
-            icon={BookOpen}
+            title="Total Detections"
+            value={analyticsLoading ? "..." : securityAnalytics?.summary?.total?.toLocaleString() ?? "0"}
+            change="Active"
+            icon={Activity}
             trend="up"
           />
           <StatCard
-            title="Modules Active"
-            value="5"
-            change="+1"
-            icon={Users}
-            trend="up"
-          />
-          <StatCard
-            title="Active Scans"
-            value="18"
-            change="+3"
-            icon={GitBranch}
-            trend="up"
-          />
-          <StatCard
-            title="Defense Score"
-            value="91%"
-            change="+2.4%"
+            title="Threats Blocked"
+            value={analyticsLoading ? "..." : securityAnalytics?.summary?.recentThreats?.toLocaleString() ?? "0"}
+            change={securityAnalytics?.summary?.total ? `${((securityAnalytics.summary.recentThreats / securityAnalytics.summary.total) * 100).toFixed(1)}%` : "0%"}
             icon={Shield}
             trend="up"
+          />
+          <StatCard
+            title="Critical Alerts"
+            value={analyticsLoading ? "..." : (securityAnalytics?.summary?.bySeverity?.CRITICAL || 0).toLocaleString()}
+            change="Action Required"
+            icon={AlertTriangle}
+            trend={securityAnalytics?.summary?.bySeverity?.CRITICAL > 0 ? "down" : "up"}
+          />
+          <StatCard
+            title="Avg Risk Score"
+            value={analyticsLoading ? "..." : `${securityAnalytics?.summary?.avgScore ?? 0}`}
+            change="Risk Average"
+            icon={Target}
+            trend={securityAnalytics?.summary?.avgScore > 50 ? "down" : "up"}
           />
         </div>
 
         {/* Main Charts */}
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs defaultValue="securityanalytics" className="space-y-4">
           <TabsList className="bg-muted/50 backdrop-blur-sm">
-            <TabsTrigger value="overview" className="ivy-font">Threat Overview</TabsTrigger>
-            <TabsTrigger value="analytics" className="ivy-font">Module Activity</TabsTrigger>
-            <TabsTrigger value="performance" className="ivy-font">Defense Health</TabsTrigger>
-            <TabsTrigger value="cashflow" className="ivy-font">Scan Timeline</TabsTrigger>
-            <TabsTrigger value="investments" className="ivy-font">Detection Stats</TabsTrigger>
-            <TabsTrigger value="transactions" className="ivy-font">Threat Incidents</TabsTrigger>
-            <TabsTrigger value="livedetection" className="ivy-font flex items-center gap-1.5">
-              <Radio className="h-3 w-3 animate-pulse text-red-500" />
-              Live Detection
-            </TabsTrigger>
             <TabsTrigger value="securityanalytics" className="ivy-font flex items-center gap-1.5">
               <Shield className="h-3 w-3" />
               Security Analytics
             </TabsTrigger>
+            <TabsTrigger value="livedetection" className="ivy-font flex items-center gap-1.5">
+              <Radio className="h-3 w-3 animate-pulse text-red-500" />
+              Live Detection
+            </TabsTrigger>
           </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-7">
-              <Card className="col-span-4 border-border/40 backdrop-blur-sm bg-card/50">
-                <CardHeader>
-                  <CardTitle className="ivy-font">Threat Detection Overview</CardTitle>
-                  <CardDescription className="ivy-font">
-                    Threats detected per scan session with target thresholds
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pl-2">
-                  <ResponsiveContainer width="100%" height={350}>
-                    <AreaChart data={progressData}>
-                      <defs>
-                        <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={chartColors.revenue} stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor={chartColors.revenue} stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={chartColors.profit} stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor={chartColors.profit} stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
-                      <XAxis 
-                        dataKey="chapter" 
-                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <YAxis 
-                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-                          border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                          borderRadius: '8px',
-                          color: isDarkMode ? '#f1f5f9' : '#0f172a'
-                        }}
-                      />
-                      <Legend />
-                      <Area 
-                        type="monotone" 
-                        dataKey="wordCount" 
-                        stroke={chartColors.revenue} 
-                        fillOpacity={1} 
-                        fill="url(#colorActual)"
-                        strokeWidth={2}
-                        name="Threats Detected"
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="targetCount" 
-                        stroke={chartColors.profit} 
-                        fillOpacity={1} 
-                        fill="url(#colorForecast)"
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        name="Target Threshold"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="col-span-3 border-border/40 backdrop-blur-sm bg-card/50">
-                <CardHeader>
-                  <CardTitle className="ivy-font">Module Activity</CardTitle>
-                  <CardDescription className="ivy-font">
-                    Distribution by defense module usage
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={350}>
-                    <PieChart>
-                      <Pie
-                        data={characterActivityData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="appearances"
-                      >
-                        {characterActivityData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-                          border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                          borderRadius: '8px'
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 space-y-2">
-                    {characterActivityData.map((character, idx) => (
-                      <div key={character.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: PIE_COLORS[idx] }}
-                          />
-                          <span className="text-sm text-muted-foreground ivy-font">{character.name}</span>
-                        </div>
-                        <span className="text-sm font-medium ivy-font">{character.appearances} appearances</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="border-border/40 backdrop-blur-sm bg-card/50">
-                <CardHeader>
-                  <CardTitle className="ivy-font">Detection Trends</CardTitle>
-                  <CardDescription className="ivy-font">
-                    Threat detections across scan sessions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={progressData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
-                      <XAxis 
-                        dataKey="chapter" 
-                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <YAxis 
-                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-                          border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                          borderRadius: '8px'
-                        }}
-                      />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="wordCount" 
-                        stroke={chartColors.profit} 
-                        strokeWidth={3}
-                        dot={{ fill: chartColors.profit, r: 5 }}
-                        activeDot={{ r: 7 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/40 backdrop-blur-sm bg-card/50">
-                <CardHeader>
-                  <CardTitle className="ivy-font">Scan Events</CardTitle>
-                  <CardDescription className="ivy-font">
-                    Scan events and modules triggered per session
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={timelineData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
-                      <XAxis 
-                        dataKey="month" 
-                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <YAxis 
-                        stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-                          border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                          borderRadius: '8px'
-                        }}
-                      />
-                      <Legend />
-                      <Bar dataKey="events" fill={chartColors.revenue} radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="characters" fill={chartColors.profit} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Performance Tab */}
-          <TabsContent value="performance" className="space-y-4">
-            <Card className="border-border/40 backdrop-blur-sm bg-card/50 hover:shadow-lg transition-all duration-300">
-              <CardHeader>
-                <CardTitle className="ivy-font">Defense Health Metrics</CardTitle>
-                <CardDescription className="ivy-font">
-                  Comprehensive view of security posture across key defense areas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <RadarChart data={storyHealthData}>
-                    <PolarGrid stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
-                    <PolarAngleAxis 
-                      dataKey="metric" 
-                      stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <PolarRadiusAxis 
-                      angle={90} 
-                      domain={[0, 100]}
-                      stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                      style={{ fontSize: '10px' }}
-                    />
-                    <Radar 
-                      name="Quality" 
-                      dataKey="value" 
-                      stroke={chartColors.primary} 
-                      fill={chartColors.primary} 
-                      fillOpacity={0.6}
-                      strokeWidth={2}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-                        border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                        borderRadius: '8px'
-                      }}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-                <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {storyHealthData.map((item, idx) => (
-                    <div key={idx} className="p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all hover:scale-105 cursor-pointer">
-                      <p className="text-sm text-muted-foreground ivy-font mb-1">{item.metric}</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-2xl font-bold ivy-font">{item.value}%</p>
-                        <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Cash Flow Tab */}
-          <TabsContent value="cashflow" className="space-y-4">
-            <Card className="border-border/40 backdrop-blur-sm bg-card/50 hover:shadow-lg transition-all duration-300">
-              <CardHeader>
-                <CardTitle className="ivy-font">Detection Activity by Quarter</CardTitle>
-                <CardDescription className="ivy-font">
-                  Track threats blocked, scans run, and incident response rounds
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <ComposedChart data={chapterStatsData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
-                    <XAxis 
-                      dataKey="chapter" 
-                      stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <YAxis 
-                      stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-                        border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Legend />
-                    <Bar dataKey="wordsWritten" fill={chartColors.revenue} radius={[8, 8, 0, 0]} name="Threats Blocked" />
-                    <Bar dataKey="targetWords" fill={chartColors.expenses} radius={[8, 8, 0, 0]} name="Target Threshold" />
-                    <Line 
-                      type="monotone" 
-                      dataKey="revisions" 
-                      stroke={chartColors.profit} 
-                      strokeWidth={3}
-                      name="Incidents Resolved"
-                      dot={{ fill: chartColors.profit, r: 6 }}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400 ivy-font mb-1">Threats Blocked</p>
-                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 ivy-font">915</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-sm text-red-600 dark:text-red-400 ivy-font mb-1">Scans Run</p>
-                    <p className="text-2xl font-bold text-red-600 dark:text-red-400 ivy-font">580</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-all hover:scale-105 cursor-pointer">
-                    <p className="text-sm text-blue-600 dark:text-blue-400 ivy-font mb-1">Risk Score</p>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 ivy-font">Low</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Investments Tab */}
-          <TabsContent value="investments" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card className="border-border/40 backdrop-blur-sm bg-card/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium ivy-font">
-                    Portfolio Value
-                  </CardTitle>
-                  
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold ivy-font">$182,000</div>
-                  <p className="text-xs text-muted-foreground ivy-font">
-                    +8.2% from last month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border-border/40 backdrop-blur-sm bg-card/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium ivy-font">
-                    Target Value
-                  </CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold ivy-font">$175,000</div>
-                  <p className="text-xs text-emerald-500 ivy-font">
-                    Target achieved! 🎉
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border-border/40 backdrop-blur-sm bg-card/50">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium ivy-font">
-                    ROI
-                  </CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold ivy-font">+45.6%</div>
-                  <p className="text-xs text-muted-foreground ivy-font">
-                    Year to date
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="border-border/40 backdrop-blur-sm bg-card/50">
-              <CardHeader>
-                <CardTitle className="ivy-font">Detection Stats Over Time</CardTitle>
-                <CardDescription className="ivy-font">
-                  Cumulative threats detected vs target thresholds
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={progressData}>
-                    <defs>
-                      <linearGradient id="colorPortfolio" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={chartColors.portfolio} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={chartColors.portfolio} stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#334155" : "#e2e8f0"} />
-                    <XAxis 
-                      dataKey="chapter" 
-                      stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <YAxis 
-                      stroke={isDarkMode ? "#94a3b8" : "#64748b"}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-                        border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Legend />
-                    <Area 
-                      type="monotone" 
-                      dataKey="wordCount" 
-                      stroke={chartColors.portfolio} 
-                      fillOpacity={1} 
-                      fill="url(#colorPortfolio)"
-                      strokeWidth={3}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="targetCount" 
-                      stroke={chartColors.target} 
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Suggested Offers Tab */}
-          <TabsContent value="transactions" className="space-y-4">
-            <Card className="border-border/40 backdrop-blur-sm bg-card/50">
-              <CardHeader>
-                <CardTitle className="ivy-font">Story Elements Tracker</CardTitle>
-                <CardDescription className="ivy-font">
-                  Active plot threads, characters, and story elements across chapters
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {storyElementsData.map((element) => (
-                    <div
-                      key={element.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border/40 bg-muted/30 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${
-                          element.status === "Active" 
-                            ? "bg-emerald-500/10 text-emerald-500" 
-                            : element.status === "Resolved"
-                            ? "bg-blue-500/10 text-blue-500"
-                            : "bg-slate-500/10 text-slate-500"
-                        }`}>
-                          {element.status === "Active" ? (
-                            <Activity className="h-4 w-4" />
-                          ) : (
-                            <Shield className="h-4 w-4" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground ivy-font">
-                            {element.element}
-                          </p>
-                          <p className="text-sm text-muted-foreground ivy-font">
-                            {element.type} • Chapters {element.chapters}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-emerald-500 ivy-font">
-                          {element.status}
-                        </div>
-                        <Badge variant="outline" className="mt-1">
-                          {element.type}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* ══════════════════════════════════════════════════════════
               LIVE DETECTION TAB
@@ -1020,7 +478,7 @@ export default function Dashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="max-h-64 overflow-y-auto space-y-1 font-mono text-xs">
+                    <div className="max-h-64 overflow-y-auto space-y-1 font-mono text-xs pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50">
                       {liveLog.length === 0 ? (
                         <p className="text-muted-foreground text-center py-4">Waiting for frames...</p>
                       ) : (
@@ -1305,7 +763,7 @@ export default function Dashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-2 overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50">
                       {securityAnalytics.recentDetections && securityAnalytics.recentDetections.length > 0 ? (
                         securityAnalytics.recentDetections.map((detection, idx) => (
                           <div
@@ -1339,9 +797,9 @@ export default function Dashboard() {
                                   </span>
                                 </div>
                                 <p className="text-sm font-medium text-foreground mb-1">
-                                  {detection.detectionType === 'url' && detection.url}
-                                  {detection.detectionType === 'email' && `${detection.emailSender} - ${detection.emailSubject}`}
-                                  {detection.detectionType === 'deepfake' && `Frame ${detection.frameCount} - ${detection.verdict}`}
+                                  {detection.detectionType === 'url' && (detection.url || 'Unknown URL')}
+                                  {detection.detectionType === 'email' && `${detection.emailSender || 'Unknown Sender'} - ${detection.emailSubject || 'No Subject'}`}
+                                  {detection.detectionType === 'deepfake' && `Frame ${detection.frameCount || 0} - ${detection.verdict || 'UNCERTAIN'}`}
                                 </p>
                                 <p className="text-xs text-muted-foreground">{detection.reason}</p>
                                 {detection.signals && detection.signals.length > 0 && (
@@ -1379,51 +837,6 @@ export default function Dashboard() {
           </TabsContent>
 
         </Tabs>
-
-        {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-border/40 backdrop-blur-sm bg-card/50 hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                  <Brain className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg ivy-font">Check Continuity</CardTitle>
-                  <CardDescription className="ivy-font">Run consistency check</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/40 backdrop-blur-sm bg-card/50 hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-purple-500/10 text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg ivy-font">Get Suggestions</CardTitle>
-                  <CardDescription className="ivy-font">AI creative ideas</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/40 backdrop-blur-sm bg-card/50 hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-blue-500/10 text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                  <PenTool className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg ivy-font">Start Writing</CardTitle>
-                  <CardDescription className="ivy-font">Continue your story</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-        </div>
       </div>
 
       {/* Footer */}

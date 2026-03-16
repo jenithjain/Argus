@@ -54,6 +54,7 @@ export async function initializeGraphSchema() {
       'CREATE CONSTRAINT ip_address IF NOT EXISTS FOR (i:IP) REQUIRE i.address IS UNIQUE',
       'CREATE CONSTRAINT org_name IF NOT EXISTS FOR (o:Organization) REQUIRE o.name IS UNIQUE',
       'CREATE CONSTRAINT campaign_id IF NOT EXISTS FOR (c:AttackCampaign) REQUIRE c.id IS UNIQUE',
+      'CREATE CONSTRAINT email_id IF NOT EXISTS FOR (e:Email) REQUIRE e.id IS UNIQUE',
     ];
 
     for (const constraint of constraints) {

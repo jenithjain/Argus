@@ -102,24 +102,27 @@ function detectSuspiciousPatterns() {
 }
 
 // Send interaction data to backend
+// NOTE: Content scripts cannot fetch localhost directly (Chrome blocks loopback
+// access from public origins). We route through the background service worker.
 async function sendInteractionData() {
   if (interactionSent) return;
 
   try {
     const data = collectInteractionData();
-    
-    const response = await fetch(`${ARGUS_API}/interaction`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
 
-    if (response.ok) {
-      console.log('[ARGUS] Interaction data sent to knowledge graph');
-      interactionSent = true;
-    }
+    chrome.runtime.sendMessage({
+      action: 'sendInteraction',
+      data,
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn('[ARGUS] Failed to send interaction data:', chrome.runtime.lastError.message);
+        return;
+      }
+      if (response && response.ok) {
+        console.log('[ARGUS] Interaction data sent to knowledge graph');
+        interactionSent = true;
+      }
+    });
   } catch (error) {
     console.warn('[ARGUS] Failed to send interaction data:', error.message);
   }
