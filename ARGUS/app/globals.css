@@ -272,3 +272,68 @@
 .campaign-markdown pre code { display: block; padding: 0.6rem; font-size: 0.7rem; }
 .campaign-markdown blockquote { background: var(--muted); padding: 0.4rem 0.6rem; border-left: 3px solid oklch(0.6 0.118 184.704); margin: 0.6rem 0; font-style: italic; }
 
+/* ── Merkle Tree React Flow Styles ──────────────────────────────── */
+.merkle-tree-flow {
+  background: transparent !important;
+}
+
+.merkle-tree-flow .react-flow__node {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.merkle-tree-flow .react-flow__edge-path {
+  stroke-linecap: round;
+}
+
+.merkle-tree-flow .react-flow__handle {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.merkle-tree-flow .react-flow__node:hover .react-flow__handle {
+  opacity: 1;
+}
+
+.merkle-tree-flow .react-flow__controls {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.merkle-tree-flow .react-flow__controls-button {
+  border: none !important;
+  width: 28px;
+  height: 28px;
+}
+
+.merkle-tree-flow .react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.merkle-tree-flow .react-flow__minimap {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.merkle-tree-flow .react-flow__attribution {
+  display: none;
+}
+
+/* Animated gradient background for the flow canvas */
+.merkle-tree-flow .react-flow__background {
+  opacity: 0.5;
+}
+
+/* Pulse animation for edge hover */
+@keyframes merkle-edge-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.merkle-tree-flow .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3 !important;
+  animation: merkle-edge-pulse 1.5s ease-in-out infinite;
+}
+

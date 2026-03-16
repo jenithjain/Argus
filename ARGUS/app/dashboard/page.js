@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,11 @@ import {
 import {
   ArrowUpRight, ArrowDownRight, Activity, 
   Target, Shield, Radio, Eye, Brain, PenTool,
-  AlertTriangle, CheckCircle, HelpCircle, XCircle, Clock, Cpu, Layers
+  AlertTriangle, CheckCircle, HelpCircle, XCircle, Clock, Cpu, Layers,
+  GitBranch, Loader2
 } from "lucide-react";
+
+const MerkleTreeVisualization = lazy(() => import("@/components/MerkleTreeVisualization"));
 
 const CHART_COLORS = {
   light: {
@@ -253,6 +256,10 @@ export default function Dashboard() {
             <TabsTrigger value="livedetection" className="ivy-font flex items-center gap-1.5">
               <Radio className="h-3 w-3 animate-pulse text-red-500" />
               Live Detection
+            </TabsTrigger>
+            <TabsTrigger value="merkletree" className="ivy-font flex items-center gap-1.5">
+              <GitBranch className="h-3 w-3 text-emerald-500" />
+              Merkle Tree
             </TabsTrigger>
           </TabsList>
 
@@ -834,6 +841,26 @@ export default function Dashboard() {
                 </Card>
               </div>
             )}
+          </TabsContent>
+
+          {/* ══════════════════════════════════════════════════════════
+              MERKLE TREE TAB
+              ═══════════════════════════════════════════════════════ */}
+          <TabsContent value="merkletree" className="space-y-4">
+            <Suspense
+              fallback={
+                <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                  <CardContent className="flex items-center justify-center py-16">
+                    <div className="text-center space-y-4">
+                      <Loader2 className="h-12 w-12 text-emerald-500 animate-spin mx-auto" />
+                      <p className="text-muted-foreground">Loading Merkle Tree visualization...</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              }
+            >
+              <MerkleTreeVisualization isDarkMode={isDarkMode} />
+            </Suspense>
           </TabsContent>
 
         </Tabs>
