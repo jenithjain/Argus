@@ -191,7 +191,7 @@ function computeAction(verdict, severity) {
 }
 
 // Log URL analysis to database
-async function logUrlAnalysis(url, verdict, score, reason, signals, explanation, action, severity, confidence) {
+async function logUrlAnalysis(url, verdict, score, reason, signals, explanation, action, severity, confidence, userId = null) {
   try {
     await connectDB();
     
@@ -202,7 +202,7 @@ async function logUrlAnalysis(url, verdict, score, reason, signals, explanation,
     } catch {}
     
     await SecurityAnalytics.create({
-      userId: null, // Will be set when user auth is available
+      userId,
       detectionType: 'url',
       detectedAt: new Date(),
       verdict,
@@ -231,6 +231,13 @@ export async function POST(request) {
   };
 
   try {
+    // ── RBAC: resolve the user for this request ───────────────
+    let userId = null;
+    try {
+      const session = await getServerSession(authOptions);
+      userId = session?.user?.id || null;
+    } catch {}
+
     // Input validation
     let body;
     try {
@@ -238,6 +245,9 @@ export async function POST(request) {
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
+
+    // Extension can pass userId explicitly when no session cookie is available
+    if (!userId && body.userId) userId = body.userId;
 
     const { url } = body;
     if (!url || typeof url !== 'string') {
@@ -353,7 +363,8 @@ export async function POST(request) {
       explainable.explanation,
       explainable.action,
       explainable.severity,
-      explainable.confidence
+      explainable.confidence,
+      userId
     ).catch(err => 
       console.error('[ARGUS] Failed to log URL analysis:', err.message)
     );

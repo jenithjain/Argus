@@ -18,6 +18,30 @@ let activeDetectionTabId = null;
 const autoStartCooldownByTab = new Map();
 const manuallyStoppedTabs = new Set();
 
+// ─── RBAC: Cached user ID from the Next.js session ──────────────────────────
+let _cachedUserId = null;
+let _userIdFetchedAt = 0;
+const USER_ID_CACHE_MS = 5 * 60 * 1000; // re-fetch every 5 min
+
+async function getUserId() {
+  if (_cachedUserId && Date.now() - _userIdFetchedAt < USER_ID_CACHE_MS) {
+    return _cachedUserId;
+  }
+  try {
+    const resp = await fetch('http://localhost:3000/api/auth/session', {
+      credentials: 'include',
+    });
+    if (resp.ok) {
+      const session = await resp.json();
+      _cachedUserId = session?.user?.id || null;
+      _userIdFetchedAt = Date.now();
+    }
+  } catch {
+    // session endpoint unreachable — keep cached value
+  }
+  return _cachedUserId;
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function normUrl(url) {
@@ -180,10 +204,11 @@ function getImmediateLexicalBlock(urlStr) {
 
 async function analyzeUrlWithGemini(urlStr) {
   try {
+    const userId = await getUserId();
     const resp = await fetch(`${GEMINI_PROXY_URL}/analyze-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: urlStr }),
+      body: JSON.stringify({ url: urlStr, userId }),
     });
     if (!resp.ok) throw new Error(`Proxy error: ${resp.status}`);
     return await resp.json();
@@ -623,12 +648,13 @@ async function handleAnalyzeFrame(imageDataUrl, sendResponse) {
     const data = await response.json();
     sendResponse(data);
 
-    // Forward to ARGUS dashboard
+    // Forward to ARGUS dashboard with userId for RBAC
     try {
+      const userId = await getUserId();
       await fetch('http://localhost:3000/api/ingest-result', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(data),
+        body:    JSON.stringify({ ...data, userId }),
       });
     } catch { /* silent */ }
 
@@ -746,13 +772,14 @@ async function handleLogEmailScan({ sender, subject, verdict, score, reason, sig
     
     console.log('[ARGUS Email] Sending payload:', JSON.stringify(payload, null, 2));
     
+    const userId = await getUserId();
     const response = await fetch(`${GEMINI_PROXY_URL}/analyze-email`, {
       method:  'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, userId }),
     });
     
     console.log('[ARGUS Email] Response status:', response.status, response.statusText);

@@ -256,10 +256,10 @@ export default function KnowledgeGraphPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="h-screen flex flex-col">
+      <div className="h-screen flex flex-col pt-14">
         {/* Header */}
         <div className="flex-none px-6 py-4 border-b border-border bg-card/80 backdrop-blur-md z-30">
-          <div className="max-w-[1800px] mx-auto flex items-center justify-between">
+          <div className="max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
                 <Network className="w-7 h-7 text-emerald-500" />
@@ -274,7 +274,7 @@ export default function KnowledgeGraphPage() {
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <ThemeToggle />
               
               <Button

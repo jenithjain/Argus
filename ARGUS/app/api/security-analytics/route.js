@@ -14,6 +14,19 @@ import SecurityAnalytics from '@/lib/models/SecurityAnalytics';
  */
 export async function GET(request) {
   try {
+    // ── RBAC: ensure the user only sees their own data ──────────
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({
+        success: true,
+        summary: { total: 0, byType: {}, byVerdict: {}, bySeverity: {}, recentThreats: 0, avgScore: 0 },
+        timeSeries: [],
+        recentDetections: [],
+        totalRecords: 0
+      });
+    }
+    const userId = session.user.id;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'all';
     const days = parseInt(searchParams.get('days') || '30');
@@ -22,8 +35,8 @@ export async function GET(request) {
 
     await connectDB();
 
-    // Build query
-    const query = {};
+    // Build query — scoped to this user's data only
+    const query = { userId };
     
     // Filter by detection type
     if (type !== 'all') {
@@ -112,12 +125,16 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
+    // ── RBAC: tag this entry with the logged-in user ────────────
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id || null;
+
     const body = await request.json();
     
     await connectDB();
     
     const analytics = await SecurityAnalytics.create({
-      userId: body.userId || null,
+      userId,
       detectionType: body.detectionType,
       detectedAt: body.detectedAt || new Date(),
       verdict: body.verdict,

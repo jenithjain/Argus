@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import connectDB from '@/lib/mongodb';
 import SecurityAnalytics from '@/lib/models/SecurityAnalytics';
 import { buildMerkleTree, getMerkleProof } from '@/lib/merkle-tree';
@@ -19,6 +21,18 @@ import { buildMerkleTree, getMerkleProof } from '@/lib/merkle-tree';
  */
 export async function GET(request) {
   try {
+    // ── RBAC: scope to logged-in user ──────────────────────────
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({
+        success: true,
+        tree: { root: null, levels: [], leaves: [], nodes: [], edges: [] },
+        totalLogs: 0,
+        message: 'Not authenticated.',
+      });
+    }
+    const userId = session.user.id;
+
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '16'), 64);
     const days = parseInt(searchParams.get('days') || '30');
@@ -26,8 +40,8 @@ export async function GET(request) {
 
     await connectDB();
 
-    // Build query
-    const query = {};
+    // Build query — scoped to this user
+    const query = { userId };
     if (type !== 'all') {
       query.detectionType = type;
     }
@@ -85,6 +99,16 @@ export async function GET(request) {
  */
 export async function POST(request) {
   try {
+    // ── RBAC: scope to logged-in user ──────────────────────────
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({
+        success: false,
+        error: 'Not authenticated.'
+      }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const body = await request.json();
     const { leafIndex, limit: bodyLimit, days: bodyDays } = body;
     const limit = Math.min(bodyLimit || 16, 64);
@@ -96,7 +120,7 @@ export async function POST(request) {
     startDate.setDate(startDate.getDate() - days);
 
     const logs = await SecurityAnalytics
-      .find({ detectedAt: { $gte: startDate } })
+      .find({ userId, detectedAt: { $gte: startDate } })
       .sort({ detectedAt: -1 })
       .limit(limit)
       .lean();

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import connectDB from "@/lib/mongodb";
 import SecurityAnalytics from "@/lib/models/SecurityAnalytics";
 
@@ -124,7 +126,7 @@ export async function OPTIONS() {
 }
 
 // ── Log deepfake detection to database ──────────────────────────────
-async function logDeepfakeDetection(data, severity, action, explanation) {
+async function logDeepfakeDetection(data, severity, action, explanation, userId = null) {
   try {
     await connectDB();
     
@@ -132,7 +134,7 @@ async function logDeepfakeDetection(data, severity, action, explanation) {
     const score = Math.round((data.fake_probability || 0) * 100);
     
     await SecurityAnalytics.create({
-      userId: null, // Will be set when user auth is available
+      userId,
       detectionType: 'deepfake',
       detectedAt: new Date(),
       verdict,
@@ -163,6 +165,14 @@ export async function POST(request) {
   try {
     const data = await request.json();
     console.log(`[ARGUS INGEST] Received frame #${data.frame_count} | fake_prob=${data.fake_probability} | verdict=${data.confidence_level}`);
+
+    // ── RBAC: resolve user for this request ───────────────────
+    let userId = null;
+    try {
+      const session = await getServerSession(authOptions);
+      userId = session?.user?.id || null;
+    } catch {}
+    if (!userId && data.userId) userId = data.userId;
 
     // Skip error results (extension sends {error: "..."} on failure)
     if (data.error) {
@@ -211,8 +221,7 @@ export async function POST(request) {
     console.log(`[ARGUS INGEST] Broadcasting to ${listeners.size} SSE clients`);
     broadcastEvent(enrichedResult);
 
-    // Log to database (async, don't block response)
-    logDeepfakeDetection(data, severity, action, explanation).catch(err =>
+    logDeepfakeDetection(data, severity, action, explanation, userId).catch(err =>
       console.error('[ARGUS INGEST] Failed to log to database:', err.message)
     );
 

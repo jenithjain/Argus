@@ -2,6 +2,8 @@
 // Uses Gemini to analyze email content for phishing, spam, and malicious content
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import connectDB from '@/lib/mongodb';
 import SecurityAnalytics from '@/lib/models/SecurityAnalytics';
 import { getCampaignClusters, attachEmailToCampaign } from '@/lib/graph-builder';
@@ -220,7 +222,7 @@ async function linkEmailToCampaignContext({ sender, subject, verdict, score, rea
 }
 
 // Log email analysis to database
-async function logEmailAnalysis(sender, subject, verdict, score, reason, signals, explanation, action, severity, confidence) {
+async function logEmailAnalysis(sender, subject, verdict, score, reason, signals, explanation, action, severity, confidence, userId = null) {
   try {
     console.log('[ARGUS Email Log] Starting log process...');
     console.log('[ARGUS Email Log] Input data:', { sender, subject, verdict, score, reason, signals });
@@ -230,7 +232,7 @@ async function logEmailAnalysis(sender, subject, verdict, score, reason, signals
     console.log('[ARGUS Email Log] MongoDB connected successfully');
     
     const logData = {
-      userId: null,
+      userId,
       detectionType: 'email',
       detectedAt: new Date(),
       verdict: String(verdict),
@@ -271,6 +273,15 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { sender, subject, body: emailBody, headers } = body;
+
+    // ── RBAC: resolve user for this request ───────────────────
+    let userId = null;
+    try {
+      const session = await getServerSession(authOptions);
+      userId = session?.user?.id || null;
+    } catch {}
+    // Extension can pass userId explicitly when no session cookie is available
+    if (!userId && body.userId) userId = body.userId;
 
     if (!sender || !subject) {
       return NextResponse.json(
@@ -314,7 +325,8 @@ export async function POST(request) {
           explainable.explanation,
           explainable.action,
           explainable.severity,
-          explainable.confidence
+          explainable.confidence,
+          userId
         );
         console.log('[ARGUS Email] Successfully logged pre-computed email analysis, ID:', logResult._id.toString());
         
@@ -456,7 +468,8 @@ ${headers ? `Headers: ${JSON.stringify(headers).slice(0, 500)}` : ''}
       explainable.explanation,
       explainable.action,
       explainable.severity,
-      explainable.confidence
+      explainable.confidence,
+      userId
     ).catch(err =>
       console.error('[ARGUS] Failed to log email analysis:', err.message)
     );
