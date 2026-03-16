@@ -108,7 +108,7 @@ function applyTheme(theme) {
   themeModeChip.textContent = `Theme: ${label}`;
 }
 
-// Load current tab URL into URL module
+// Load current tab URL into URL module + instantly load cached email results
 chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
   if (tab && tab.url) {
     const url = tab.url;
@@ -116,7 +116,23 @@ chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     // Check if we're on Gmail/Outlook
     const isMailSite = /mail\.google\.com|outlook\.(com|live|office)|yahoo\.com\/mail/i.test(url);
     if (isMailSite) {
-      setMailModuleActive(true);
+      // 1. Immediately load cached email scan result from storage (instant)
+      const storageKey = `emailScanResult_${tab.id}`;
+      chrome.storage.local.get([storageKey], (store) => {
+        const cached = store[storageKey];
+        if (cached) {
+          // Replay the cached result as if the message just arrived
+          handleEmailScanResult(cached);
+        } else {
+          setMailModuleActive(true, 'Scanning email content...');
+        }
+      });
+
+      // 2. Also trigger a fresh scan from the content script (will arrive via message)
+      chrome.tabs.sendMessage(tab.id, { action: 'rescanEmail' }, () => {
+        // ignore errors if content script not ready
+        if (chrome.runtime.lastError) { /* ok */ }
+      });
     }
   }
 });
@@ -212,10 +228,10 @@ function setDfUI(active) {
 }
 
 // ---- Email Module ----
-function setMailModuleActive(active) {
+function setMailModuleActive(active, stateText) {
   if (active) {
     mailStatusDot.className = 'module-status-dot active';
-    mailState.textContent   = 'Scanning email content...';
+    mailState.textContent   = stateText || 'Scanning email content...';
     modMailCard.className   = 'module-card active';
     pillDots.mail.className = 'module-dot active';
   }
@@ -276,6 +292,50 @@ function addThreatFeedItem(level, title, desc) {
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ---- Email Scan Result Handler (reusable — called from init cache + live messages) ----
+function handleEmailScanResult(r) {
+  if (!r) return;
+  mailResult.style.display = 'flex';
+
+  const threats = r.threats || 0;
+  const kwHits  = r.kwHits  || 0;
+  mailVerdict.textContent = threats > 0 ? `${threats} threat${threats > 1 ? 's' : ''} found` : 'Clean';
+  mailLinks.textContent   = r.linksFound || 0;
+  mailThreats.textContent = threats;
+  mailVerdict.className   = `mr-val ${threats > 0 ? (threats >= 2 ? 'danger' : 'warning') : 'safe'}`;
+
+  if (threats > 0) {
+    const level = threats >= 2 ? 'danger' : 'warning';
+    const stateText = `${threats} phishing link${threats > 1 ? 's' : ''} detected`;
+    mailStatusDot.className = `module-status-dot ${level}`;
+    modMailCard.className   = `module-card ${level}`;
+    pillDots.mail.className = `module-dot ${level === 'danger' ? 'danger' : 'warn'}`;
+    mailState.textContent   = stateText;
+    updateGlobalRisk(threats >= 2 ? 80 : (kwHits >= 3 ? 60 : 50));
+    addThreatFeedItem(
+      level,
+      'Phishing Email Detected',
+      r.summary || `${threats} suspicious link${threats > 1 ? 's' : ''} found in email`
+    );
+  } else if (kwHits >= 3) {
+    mailStatusDot.className = 'module-status-dot warning';
+    modMailCard.className   = 'module-card warning';
+    pillDots.mail.className = 'module-dot warn';
+    mailState.textContent   = 'Suspicious language detected';
+    updateGlobalRisk(35);
+    addThreatFeedItem(
+      'warning',
+      'Suspicious Email Language',
+      r.summary || `${kwHits} phishing phrases detected in email body`
+    );
+  } else {
+    mailStatusDot.className = 'module-status-dot active';
+    modMailCard.className   = 'module-card active';
+    pillDots.mail.className = 'module-dot active';
+    mailState.textContent   = '✓ Email verified clean';
+  }
 }
 
 // ---- Message Listener (from background + content) ----
@@ -358,33 +418,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
   // Email scan results
   if (msg.action === 'emailScanResult') {
-    const r = msg.result;
-    mailResult.style.display = 'flex';
-
-    const threats = r.threats || 0;
-    mailVerdict.textContent = threats > 0 ? `${threats} threat${threats > 1 ? 's' : ''} found` : 'Clean';
-    mailLinks.textContent   = r.linksFound || 0;
-    mailThreats.textContent = threats;
-    mailVerdict.className   = `mr-val ${threats > 0 ? (threats >= 2 ? 'danger' : 'warning') : 'safe'}`;
-
-    setMailModuleActive(true);
-
-    if (threats > 0) {
-      mailStatusDot.className = `module-status-dot ${threats >= 2 ? 'danger' : 'warning'}`;
-      modMailCard.className   = `module-card ${threats >= 2 ? 'danger' : 'warning'}`;
-      pillDots.mail.className = `module-dot ${threats >= 2 ? 'danger' : 'warn'}`;
-      mailState.textContent   = `${threats} phishing link${threats > 1 ? 's' : ''} detected`;
-      updateGlobalRisk(threats >= 2 ? 80 : 50);
-      addThreatFeedItem(
-        threats >= 2 ? 'danger' : 'warning',
-        'Phishing Email Detected',
-        r.summary || `${threats} suspicious link${threats > 1 ? 's' : ''} found in email`
-      );
-    } else {
-      mailStatusDot.className = 'module-status-dot active';
-      modMailCard.className   = 'module-card active';
-      mailState.textContent   = 'Email content verified clean';
-    }
+    handleEmailScanResult(msg.result);
   }
 });
 

@@ -38,7 +38,60 @@ const PHISHING_KEYWORDS = [
   'dear customer','dear user','dear member','validate your','urgent action',
   'account locked','security alert','you have been selected','claim your prize',
   'won a','free gift','limited offer','expires today','expires in 24',
+  'wire transfer','gift card','bitcoin','crypto','your account has been',
+  'sign in to restore','immediate action','one-time password','otp',
 ];
+
+// ── Inline lexical URL scorer (mirrors background.js — no round-trip needed) ──
+const _EMAIL_SUSP_KEYWORDS = [
+  'login','signin','verify','secure','account','update','confirm','paypal',
+  'amazon','google','apple','microsoft','netflix','bank','password','credential',
+  'suspend','urgent','alert','limited','unusual','activity','suspended','validate',
+];
+const _EMAIL_BAD_TLDS = ['.tk','.ml','.ga','.cf','.gq','.xyz','.top','.click','.download','.link'];
+
+function _lexScore(urlStr) {
+  try {
+    const u    = new URL(urlStr);
+    let score  = 0;
+    const host = u.hostname.toLowerCase();
+    const full = urlStr.toLowerCase();
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) score += 40;
+    if (host.split('.').length > 4) score += 20;
+    if (_EMAIL_BAD_TLDS.some(t => host.endsWith(t))) score += 25;
+    score += _EMAIL_SUSP_KEYWORDS.filter(k => host.includes(k)).length * 12;
+    if (full.includes('@')) score += 30;
+    if ((host.match(/-/g) || []).length > 3) score += 15;
+    if (urlStr.length > 100) score += 10;
+    if (urlStr.length > 200) score += 15;
+    if (full.includes('//') && full.indexOf('//') !== full.lastIndexOf('//')) score += 20;
+    if (host.includes('xn--')) score += 35;
+    if (u.port && !['80','443',''].includes(u.port)) score += 15;
+    return Math.min(score, 100);
+  } catch { return 0; }
+}
+
+function _lexVerdict(score) {
+  if (score >= 60) return 'HIGH_RISK';
+  if (score >= 30) return 'SUSPICIOUS';
+  return 'CLEAR';
+}
+
+function _lexReason(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    const host = u.hostname.toLowerCase();
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return 'Uses raw IP address instead of a trusted domain';
+    if (host.includes('xn--')) return 'Contains punycode (possible homograph attack)';
+    if (_EMAIL_BAD_TLDS.some(t => host.endsWith(t))) return 'Uses a high-risk top-level domain';
+    if (urlStr.includes('@')) return 'Contains @ URL obfuscation pattern';
+    if (host.split('.').length > 4) return 'Excessive subdomains indicate possible impersonation';
+    const kws = _EMAIL_SUSP_KEYWORDS.filter(k => host.includes(k));
+    if (kws.length) return `Suspicious domain keywords: ${kws.slice(0,3).join(', ')}`;
+    return 'High-risk lexical patterns detected';
+  } catch { return 'High-risk lexical patterns detected'; }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function extractEmailLinks(rootEl) {
   const anchors = Array.from(rootEl.querySelectorAll('a[href]'));
@@ -54,47 +107,57 @@ function detectPhishingKeywords(text) {
   return PHISHING_KEYWORDS.filter(kw => lower.includes(kw));
 }
 
-async function scanEmailContent(rootEl) {
-  const bodyText  = (rootEl.innerText || rootEl.textContent || '').slice(0, 8000);
-  const links     = extractEmailLinks(rootEl);
-  const kwHits    = detectPhishingKeywords(bodyText);
+// Fully synchronous — no network calls, no message round-trips.
+// Result is available in < 1ms.
+function scanEmailContent(rootEl) {
+  const bodyText = (rootEl.innerText || rootEl.textContent || '').slice(0, 8000);
+  const links    = extractEmailLinks(rootEl);
+  const kwHits   = detectPhishingKeywords(bodyText);
 
-  // Ask background to scan each link
-  const scanPromises = links.slice(0, 12).map(link =>
-    new Promise(resolve => {
-      chrome.runtime.sendMessage({ action: 'scanUrl', url: link.href }, result => {
-        resolve({ link, result: result || {} });
-      });
-    })
-  );
+  // Score every link locally using the inline lexical scorer
+  const linkResults = links.slice(0, 20).map(link => {
+    const score   = _lexScore(link.href);
+    const verdict = _lexVerdict(score);
+    const reason  = score >= 30 ? _lexReason(link.href) : null;
+    return { link, score, verdict, reason };
+  });
 
-  const linkResults = await Promise.all(scanPromises);
-  const malicious   = linkResults.filter(r => r.result.verdict === 'HIGH_RISK' || r.result.verdict === 'MALICIOUS');
-  const suspicious  = linkResults.filter(r => r.result.verdict === 'SUSPICIOUS');
-  const threats     = malicious.length + suspicious.length;
+  const malicious  = linkResults.filter(r => r.verdict === 'HIGH_RISK');
+  const suspicious = linkResults.filter(r => r.verdict === 'SUSPICIOUS');
+  const threats    = malicious.length + suspicious.length;
 
-  // Annotate links inline
-  linkResults.forEach(({ link, result }) => {
-    if (result.verdict === 'HIGH_RISK' || result.verdict === 'MALICIOUS') {
+  // Keyword-based phishing boost: treat heavy keyword matches as suspicious even
+  // when no individual link crosses the threshold.
+  const kwThreat = kwHits.length >= 3 ? 1 : 0;
+  const totalThreats = threats + kwThreat;
+
+  // Annotate links inline — instant visual feedback
+  linkResults.forEach(({ link, verdict }) => {
+    if (verdict === 'HIGH_RISK') {
       injectLinkBadge(link.el, 'danger', '⚠ MALICIOUS');
-    } else if (result.verdict === 'SUSPICIOUS') {
-      injectLinkBadge(link.el, 'warning', '? SUSPICIOUS');
+    } else if (verdict === 'SUSPICIOUS') {
+      injectLinkBadge(link.el, 'warning', '⚠ SUSPICIOUS');
     }
   });
 
-  // Report to background → popup
+  // Build human-readable summary
   const topThreat = malicious[0] || suspicious[0];
+  let summary = null;
+  if (topThreat) {
+    summary = `${topThreat.verdict === 'HIGH_RISK' ? '🚨 Malicious' : '⚠ Suspicious'} link: ${topThreat.link.href.slice(0, 80)}`;
+    if (topThreat.reason) summary += ` — ${topThreat.reason}`;
+  } else if (kwHits.length > 0) {
+    summary = `Phishing keywords detected: "${kwHits.slice(0, 3).join('", "')}"`;
+  }
+
+  // Report to popup instantly — no await, no delay
   chrome.runtime.sendMessage({
     action: 'emailScanResult',
     result: {
-      threats,
+      threats:    totalThreats,
       linksFound: links.length,
       kwHits:     kwHits.length,
-      summary:    topThreat
-        ? `Suspicious link detected: ${topThreat.link.href.slice(0, 80)}`
-        : kwHits.length > 0
-        ? `Phishing keywords detected: "${kwHits[0]}"`
-        : null,
+      summary,
     },
   });
 }
@@ -123,16 +186,31 @@ function injectLinkBadge(anchor, level, label) {
 }
 
 // Watch for email open in Gmail / Outlook
+let _emailDebounceTimer = null;
+let _lastEmailFingerprint = '';
+
+function getEmailFingerprint(rootEl) {
+  // Use a short slice of the text content as a cheap identity check.
+  // If this changes, the user has opened a different email.
+  return (rootEl.innerText || rootEl.textContent || '').slice(0, 200).trim();
+}
+
 function watchEmailClient() {
   if (!isMailClient) return;
 
   // Scan immediately if content already loaded
   tryInitialEmailScan();
 
-  // MutationObserver for dynamically loaded email threads
+  // Debounced MutationObserver — fires at most once per 100 ms and only when
+  // the email pane content has actually changed (new email opened).
   if (!state.emailObserver) {
     state.emailObserver = new MutationObserver(() => {
-      if (!state.emailScanned) tryInitialEmailScan();
+      clearTimeout(_emailDebounceTimer);
+      _emailDebounceTimer = setTimeout(() => {
+        if (!state.emailScanned) {
+          tryInitialEmailScan();
+        }
+      }, 100);
     });
     state.emailObserver.observe(document.body, { childList: true, subtree: true });
   }
@@ -142,21 +220,29 @@ function tryInitialEmailScan() {
   let emailRoot = null;
 
   if (isGmail) {
-    // Gmail: main reading pane
-    emailRoot = document.querySelector('[role="main"]') ||
+    // Gmail: try the most specific selector first for fastest match
+    emailRoot = document.querySelector('.a3s.aiL') ||
                 document.querySelector('.a3s') ||
-                document.querySelector('[data-message-id]');
+                document.querySelector('[data-message-id]') ||
+                document.querySelector('[role="main"]');
   } else if (isOutlook) {
     emailRoot = document.querySelector('[aria-label="Message body"]') ||
                 document.querySelector('.ReadingPaneContent') ||
                 document.querySelector('[data-app-section="EmailReadingPane"]');
   }
 
-  if (emailRoot && !state.emailScanned) {
+  if (!emailRoot) return;
+
+  // Check if this is actually a new/different email before scanning
+  const fingerprint = getEmailFingerprint(emailRoot);
+  if (!fingerprint || fingerprint === _lastEmailFingerprint) return;
+
+  if (!state.emailScanned) {
     state.emailScanned = true;
-    scanEmailContent(emailRoot);
-    // Re-scan on email change (Gmail loads new emails via AJAX)
-    setTimeout(() => { state.emailScanned = false; }, 8000);
+    _lastEmailFingerprint = fingerprint;
+    scanEmailContent(emailRoot); // synchronous — result reported instantly
+    // Unlock re-scan after 3 s so switching emails triggers a fresh scan quickly
+    setTimeout(() => { state.emailScanned = false; }, 3000);
   }
 }
 
@@ -486,6 +572,17 @@ if (!window.deepfakeDetectionListenerAdded) {
       sendResponse({ success: true });
       return false; // Synchronous response
     } 
+
+    if (message.action === 'rescanEmail') {
+      // Popup is requesting an instant email re-scan (bypass cooldown)
+      if (isMailClient) {
+        state.emailScanned = false;
+        _lastEmailFingerprint = '';
+        tryInitialEmailScan();
+      }
+      sendResponse({ success: true });
+      return false;
+    }
 
     if (message.action === 'hasVideoElement') {
       const hasVideo = Boolean(document.querySelector('video'));

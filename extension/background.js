@@ -342,7 +342,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.runtime.sendMessage(message).catch(() => {});
       break;
     case 'emailScanResult':
-      // Forward to popup
+      // Persist result so popup can read it even if it wasn't open at scan time
+      if (sender?.tab?.id) {
+        chrome.storage.local.set({ [`emailScanResult_${sender.tab.id}`]: message.result });
+      }
+      // Forward to popup (if open)
       chrome.runtime.sendMessage(message).catch(() => {});
       break;
     case 'videoPlaybackDetected':
