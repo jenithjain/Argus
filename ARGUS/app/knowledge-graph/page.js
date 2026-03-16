@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,8 @@ import {
   Brain,
   X,
   Loader2,
-  Filter
+  Filter,
+  ChevronRight
 } from 'lucide-react';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
@@ -53,7 +54,9 @@ export default function KnowledgeGraphPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
   const graphRef = useRef();
+  const graphContainerRef = useRef();
 
   const nodeTypes = Object.keys(COLORS);
 
@@ -73,6 +76,24 @@ export default function KnowledgeGraphPage() {
     
     return () => observer.disconnect();
   }, []);
+
+  // Track graph container size to explicitly set graph dimensions
+  useEffect(() => {
+    const container = graphContainerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const rect = container.getBoundingClientRect();
+      setGraphDimensions({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+    };
+
+    updateSize();
+
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(container);
+
+    return () => resizeObserver.disconnect();
+  }, [sidebarOpen]);
 
   const fetchGraphData = useCallback(async () => {
     try {
@@ -130,7 +151,7 @@ export default function KnowledgeGraphPage() {
     }
   }, []);
 
-  const getAIExplanation = async (node) => {
+  const getAIExplanation = useCallback(async (node) => {
     setLoadingAI(true);
     try {
       const response = await fetch('/api/explain-node', {
@@ -146,7 +167,7 @@ export default function KnowledgeGraphPage() {
     } finally {
       setLoadingAI(false);
     }
-  };
+  }, []);
 
   const resetGraph = async () => {
     if (!confirm('Reset the entire knowledge graph? This cannot be undone.')) return;
@@ -178,13 +199,35 @@ export default function KnowledgeGraphPage() {
     }
   }, [autoRefresh, fetchGraphData, fetchCampaigns]);
 
+  // Configure d3 forces for better node spacing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (graphRef.current) {
+        try {
+          const fg = graphRef.current;
+          // Strong repulsion to push nodes apart
+          fg.d3Force('charge')?.strength(-500).distanceMax(800);
+          // Increase link distance
+          fg.d3Force('link')?.distance(300);
+          // Weak center force to keep graph visible
+          fg.d3Force('center')?.strength(0.03);
+          // Reheat the simulation to apply new forces
+          fg.d3ReheatSimulation?.();
+        } catch (error) {
+          console.warn('Failed to configure d3 forces:', error);
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filteredGraphData, viewMode]);
+
   const handleNodeClick = useCallback((node) => {
-    console.log('Node clicked:', node);
-    console.log('Setting selectedNode and opening sidebar');
-    setSelectedNode(node);
+    // Clone the node to avoid mutation issues with force-graph internals
+    const nodeData = { ...node };
+    setSelectedNode(nodeData);
     setSidebarOpen(true);
     setAiExplanation(null);
-    getAIExplanation(node);
+    getAIExplanation(nodeData);
     
     if (graphRef.current && viewMode === '2d') {
       try {
@@ -194,22 +237,28 @@ export default function KnowledgeGraphPage() {
         console.warn('Failed to center graph:', error);
       }
     }
-  }, [viewMode]);
+  }, [viewMode, getAIExplanation]);
 
-  const getNodeLabel = (node) => {
+  const getNodeLabel = useCallback((node) => {
     if (node.label === 'Domain') return node.name;
     if (node.label === 'User') return node.id || 'User';
     if (node.label === 'IP') return node.address;
     if (node.label === 'Organization') return node.name;
     if (node.label === 'AttackCampaign') return `Campaign ${node.domainCount || ''}`;
     return node.name || node.label;
-  };
+  }, []);
+
+  // Properties to hide from the detail view (internal force-graph / three.js properties)
+  const HIDDEN_PROPS = useMemo(() => new Set([
+    'x', 'y', 'z', 'vx', 'vy', 'vz', 'fx', 'fy', 'fz',
+    'index', '__threeObj', 'color', 'size', '__indexColor'
+  ]), []);
 
   return (
     <div className="min-h-screen">
       <div className="h-screen flex flex-col">
         {/* Header */}
-        <div className="flex-none px-6 py-4 border-b border-border bg-card/80 backdrop-blur-md">
+        <div className="flex-none px-6 py-4 border-b border-border bg-card/80 backdrop-blur-md z-30">
           <div className="max-w-[1800px] mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
@@ -229,10 +278,7 @@ export default function KnowledgeGraphPage() {
               <ThemeToggle />
               
               <Button
-                onClick={() => {
-                  console.log('Sidebar toggle clicked, current state:', sidebarOpen);
-                  setSidebarOpen(!sidebarOpen);
-                }}
+                onClick={() => setSidebarOpen(prev => !prev)}
                 variant="outline"
                 size="sm"
                 className="gap-2"
@@ -322,9 +368,9 @@ export default function KnowledgeGraphPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Graph Visualization */}
-          <div className={`relative ${sidebarOpen ? 'flex-1' : 'w-full'}`}>
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Graph Visualization - always takes full width, sidebar overlays */}
+          <div className="flex-1 relative" ref={graphContainerRef}>
             {/* Stats Overlay */}
             <div className="absolute top-4 left-4 z-10 flex gap-3">
               <Card className="bg-card/95 border-border backdrop-blur-md p-3 shadow-lg">
@@ -363,7 +409,7 @@ export default function KnowledgeGraphPage() {
             </div>
 
             {/* View Mode Toggle */}
-            <div className="absolute top-4 right-4 z-10">
+            <div className="absolute top-4 right-4 z-10" style={{ right: sidebarOpen ? '400px' : '16px' }}>
               <Tabs value={viewMode} onValueChange={setViewMode}>
                 <TabsList className="bg-card/95 backdrop-blur-md border border-border shadow-lg">
                   <TabsTrigger value="2d">2D View</TabsTrigger>
@@ -378,28 +424,37 @@ export default function KnowledgeGraphPage() {
                 <ForceGraph2D
                   ref={graphRef}
                   graphData={filteredGraphData}
+                  width={graphDimensions.width}
+                  height={graphDimensions.height}
                   nodeLabel={getNodeLabel}
                   nodeColor={(node) => String(node.color || '#6b7280')}
-                  nodeRelSize={12}
-                  nodeVal={node => (node.size || 5) * 3}
-                  linkDirectionalArrowLength={8}
+                  nodeRelSize={8}
+                  nodeVal={node => (node.size || 5) * 2}
+                  linkDirectionalArrowLength={6}
                   linkDirectionalArrowRelPos={1}
-                  linkCurvature={0.2}
-                  linkWidth={3}
-                  linkDirectionalParticles={2}
+                  linkCurvature={0.15}
+                  linkWidth={2}
+                  linkDirectionalParticles={1}
                   linkDirectionalParticleWidth={2}
-                  linkDistance={150}
                   onNodeClick={handleNodeClick}
                   backgroundColor="transparent"
-                  linkColor={() => (isDarkMode ? '#94a3b8' : '#64748b')}
-                  d3VelocityDecay={0.3}
-                  cooldownTime={3000}
-                  d3AlphaDecay={0.02}
+                  linkColor={() => (isDarkMode ? '#475569' : '#94a3b8')}
+                  d3VelocityDecay={0.15}
+                  cooldownTime={5000}
+                  d3AlphaDecay={0.01}
                   d3AlphaMin={0.001}
                   nodeCanvasObject={(node, ctx, globalScale) => {
                     const label = getNodeLabel(node);
-                    const size = (node.size || 5) * 3;
-                    const fontSize = 14 / globalScale;
+                    const size = (node.size || 5) * 2.5;
+                    const fontSize = Math.max(12 / globalScale, 3);
+                    
+                    // Draw glow for high-risk nodes
+                    if (node.riskScore && node.riskScore >= 70) {
+                      ctx.beginPath();
+                      ctx.arc(node.x, node.y, size + 4, 0, 2 * Math.PI);
+                      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+                      ctx.fill();
+                    }
                     
                     ctx.beginPath();
                     ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
@@ -412,38 +467,66 @@ export default function KnowledgeGraphPage() {
                       ctx.stroke();
                     }
                     
-                    ctx.font = `${fontSize}px Sans-Serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillStyle = isDarkMode ? '#f8fafc' : '#0f172a';
-                    ctx.fillText(label, node.x, node.y + size + fontSize);
+                    if (globalScale > 0.5) {
+                      ctx.font = `${fontSize}px Sans-Serif`;
+                      ctx.textAlign = 'center';
+                      ctx.textBaseline = 'middle';
+                      ctx.fillStyle = isDarkMode ? '#f8fafc' : '#0f172a';
+                      ctx.fillText(label, node.x, node.y + size + fontSize + 2);
+                    }
                   }}
                 />
               ) : (
                 <ForceGraph3D
                   ref={graphRef}
                   graphData={filteredGraphData}
+                  width={graphDimensions.width}
+                  height={graphDimensions.height}
                   nodeLabel={getNodeLabel}
                   nodeColor={(node) => String(node.color || '#6b7280')}
-                  nodeRelSize={12}
-                  nodeVal={node => (node.size || 5) * 3}
-                  linkDirectionalArrowLength={8}
+                  nodeRelSize={6}
+                  nodeVal={node => (node.size || 5) * 2}
+                  linkDirectionalArrowLength={6}
                   linkDirectionalArrowRelPos={1}
-                  linkWidth={3}
-                  linkDistance={150}
+                  linkWidth={2}
                   onNodeClick={handleNodeClick}
-                  backgroundColor="transparent"
-                  linkColor={() => (isDarkMode ? '#94a3b8' : '#64748b')}
+                  backgroundColor={isDarkMode ? '#09090b' : '#fafafa'}
+                  linkColor={() => (isDarkMode ? '#475569' : '#94a3b8')}
+                  d3VelocityDecay={0.15}
+                  cooldownTime={5000}
+                  d3AlphaDecay={0.01}
+                  d3AlphaMin={0.001}
                 />
               )}
             </div>
           </div>
 
-          {/* Right Sidebar - Toggleable */}
-          {sidebarOpen && (
-            <div className="w-96 min-w-[384px] flex-shrink-0 border-l border-border bg-card/95 backdrop-blur-md overflow-y-auto shadow-2xl">
-              <div className="p-4 space-y-4">
-              {console.log('Sidebar rendering, selectedNode:', selectedNode, 'sidebarOpen:', sidebarOpen)}
+          {/* Right Sidebar - Overlay positioned */}
+          <div 
+            className={`absolute top-0 right-0 h-full z-20 border-l border-border bg-card/98 backdrop-blur-xl overflow-y-auto shadow-2xl transition-transform duration-300 ease-in-out ${
+              sidebarOpen 
+                ? 'translate-x-0' 
+                : 'translate-x-full'
+            }`}
+            style={{ width: '384px' }}
+          >
+            {/* Close button inside sidebar */}
+            <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-md border-b border-border p-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Network className="w-4 h-4 text-emerald-500" />
+                Details Panel
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarOpen(false)}
+                className="h-7 w-7 p-0"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="p-4 space-y-4">
               {/* Selected Node Details */}
               {selectedNode ? (
                 <Card className="bg-card border-border shadow-lg">
@@ -452,7 +535,7 @@ export default function KnowledgeGraphPage() {
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: selectedNode.color }}
+                          style={{ backgroundColor: selectedNode.color || '#6b7280' }}
                         />
                         <Badge variant="outline">{selectedNode.label}</Badge>
                       </div>
@@ -483,7 +566,7 @@ export default function KnowledgeGraphPage() {
                                 : selectedNode.riskScore >= 40 ? 'bg-yellow-500'
                                 : 'bg-green-500'
                               }`}
-                              style={{ width: `${selectedNode.riskScore}%` }}
+                              style={{ width: `${Math.min(selectedNode.riskScore, 100)}%` }}
                             />
                           </div>
                           <span className="text-foreground font-semibold text-sm">
@@ -503,9 +586,32 @@ export default function KnowledgeGraphPage() {
                     {selectedNode.country && (
                       <div className="mb-3">
                         <p className="text-sm text-muted-foreground">Location</p>
-                        <p className="text-foreground">{selectedNode.city}, {selectedNode.country}</p>
+                        <p className="text-foreground">{selectedNode.city}{selectedNode.city && selectedNode.country ? ', ' : ''}{selectedNode.country}</p>
                       </div>
                     )}
+
+                    {/* All Node Properties */}
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-sm font-semibold text-foreground mb-2">All Properties</p>
+                      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                        {Object.entries(selectedNode)
+                          .filter(([key]) => !HIDDEN_PROPS.has(key))
+                          .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
+                          .map(([key, value]) => (
+                            <div key={key} className="flex justify-between gap-2 text-xs py-0.5">
+                              <span className="text-muted-foreground capitalize flex-shrink-0">
+                                {key.replace(/([A-Z])/g, ' $1').trim()}
+                              </span>
+                              <span 
+                                className="text-foreground font-mono text-right truncate max-w-[200px]" 
+                                title={String(value)}
+                              >
+                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
 
                     {/* AI Explanation */}
                     <div className="mt-4 pt-4 border-t border-border">
@@ -592,8 +698,18 @@ export default function KnowledgeGraphPage() {
                   </div>
                 </div>
               </Card>
-              </div>
             </div>
+          </div>
+
+          {/* Sidebar toggle tab (visible when sidebar is closed) */}
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur-md border border-border border-r-0 rounded-l-lg p-2 shadow-lg hover:bg-accent transition-colors"
+              title="Open details panel"
+            >
+              <ChevronRight className="w-4 h-4 text-foreground rotate-180" />
+            </button>
           )}
         </div>
       </div>
