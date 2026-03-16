@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react";
 import StaggeredMenu from "@/components/StaggeredMenu";
 
-export default function DashboardLayout({ children }) {
+export default function AnalyticsLayout({ children }) {
   const [menuBtnColor, setMenuBtnColor] = useState('#000000');
 
   useEffect(() => {
-    // Set initial color
     const updateColor = () => {
       const isDark = document.documentElement.classList.contains('dark');
       setMenuBtnColor(isDark ? '#ffffff' : '#000000');
@@ -15,7 +14,6 @@ export default function DashboardLayout({ children }) {
     
     updateColor();
     
-    // Watch for theme changes
     const observer = new MutationObserver(updateColor);
     observer.observe(document.documentElement, {
       attributes: true,
@@ -27,7 +25,6 @@ export default function DashboardLayout({ children }) {
 
   return (
     <>
-      {/* Navbar */}
       <div className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
         <div className="pointer-events-auto">
           <StaggeredMenu
@@ -42,7 +39,6 @@ export default function DashboardLayout({ children }) {
               { label: "Home", link: "/", ariaLabel: "Go to Home" },
               { label: "Dashboard", link: "/dashboard", ariaLabel: "View Dashboard" },
               { label: "Analytics", link: "/analytics", ariaLabel: "Security Analytics" },
-              { label: "Threat Analysis", link: "/campaign", ariaLabel: "AI Threat Analysis" },
               { label: "Knowledge Graph", link: "/knowledge-graph", ariaLabel: "Threat Intelligence Graph" },
               { label: "Assistant", link: "/assistant", ariaLabel: "AI Assistant" },
               { label: "Profile", link: "/profile", ariaLabel: "View Profile" },
@@ -51,8 +47,7 @@ export default function DashboardLayout({ children }) {
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="pt-20">
+      <main>
         {children}
       </main>
     </>
