@@ -14,7 +14,7 @@ import {
   ArrowUpRight, ArrowDownRight, Activity,
   Target, Shield, Radio, Eye, Brain, PenTool,
   AlertTriangle, CheckCircle, HelpCircle, XCircle, Clock, Cpu, Layers,
-  GitBranch, Loader2
+  GitBranch, Loader2, Link, Mail, Video
 } from "lucide-react";
 
 const MerkleTreeVisualization = lazy(() => import("@/components/MerkleTreeVisualization"));
@@ -592,105 +592,216 @@ export default function Dashboard() {
                 </div>
 
                 {/* Detection Type Distribution */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Donut Chart with Center Metrics */}
+                  <Card className="border-border/40 backdrop-blur-sm bg-gradient-to-br from-card/80 to-card/40 shadow-xl hover:shadow-2xl transition-all duration-300">
                     <CardHeader>
-                      <CardTitle className="ivy-font">Detection by Type</CardTitle>
-                      <CardDescription className="ivy-font">
+                      <CardTitle className="ivy-font text-lg font-semibold flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-emerald-500" />
+                        Detection by Type
+                      </CardTitle>
+                      <CardDescription className="ivy-font text-xs">
                         Distribution across URL, Email, and Deepfake modules
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                          <Pie
-                            data={[
-                              { name: 'URL Analysis', value: securityAnalytics.summary.byType.url || 0 },
-                              { name: 'Email Analysis', value: securityAnalytics.summary.byType.email || 0 },
-                              { name: 'Deepfake Detection', value: securityAnalytics.summary.byType.deepfake || 0 }
-                            ]}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            outerRadius={100}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            <Cell fill={chartColors.primary} />
-                            <Cell fill={chartColors.secondary} />
-                            <Cell fill={chartColors.tertiary} />
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
-                              border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                              borderRadius: '8px'
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="mt-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors.primary }} />
-                            <span className="text-sm text-muted-foreground ivy-font">URL Analysis</span>
+                      <div className="relative">
+                        <ResponsiveContainer width="100%" height={320}>
+                          <PieChart>
+                            <Pie
+                              data={[
+                                { name: 'URL Analysis', value: securityAnalytics.summary.byType.url || 0 },
+                                { name: 'Email Analysis', value: securityAnalytics.summary.byType.email || 0 },
+                                { name: 'Deepfake Detection', value: securityAnalytics.summary.byType.deepfake || 0 }
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={70}
+                              outerRadius={100}
+                              paddingAngle={3}
+                              dataKey="value"
+                              animationBegin={0}
+                              animationDuration={800}
+                            >
+                              <Cell fill={chartColors.primary} />
+                              <Cell fill={chartColors.secondary} />
+                              <Cell fill={chartColors.tertiary} />
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
+                                border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                                padding: '12px'
+                              }}
+                              formatter={(value, name) => [value, name]}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        {/* Center Metrics */}
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                          <div className="text-3xl font-bold text-foreground ivy-font">
+                            {securityAnalytics.summary.total}
                           </div>
-                          <span className="text-sm font-medium ivy-font">{securityAnalytics.summary.byType.url || 0}</span>
+                          <div className="text-xs text-muted-foreground ivy-font mt-1">
+                            Total Detections
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors.secondary }} />
-                            <span className="text-sm text-muted-foreground ivy-font">Email Analysis</span>
+                      </div>
+                      <div className="mt-6 space-y-3">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-emerald-500/10 to-transparent hover:from-emerald-500/20 transition-all duration-200 group cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-emerald-500/20 group-hover:bg-emerald-500 transition-colors">
+                              <Link className="h-4 w-4 text-emerald-500 group-hover:text-white transition-colors" />
+                            </div>
+                            <span className="text-sm font-medium text-foreground ivy-font">URL Analysis</span>
                           </div>
-                          <span className="text-sm font-medium ivy-font">{securityAnalytics.summary.byType.email || 0}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-foreground ivy-font">{securityAnalytics.summary.byType.url || 0}</span>
+                            <div className="text-xs text-muted-foreground">
+                              {securityAnalytics.summary.total > 0 ? `${((securityAnalytics.summary.byType.url / securityAnalytics.summary.total) * 100).toFixed(0)}%` : '0%'}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors.tertiary }} />
-                            <span className="text-sm text-muted-foreground ivy-font">Deepfake Detection</span>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-transparent hover:from-blue-500/20 transition-all duration-200 group cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-blue-500/20 group-hover:bg-blue-500 transition-colors">
+                              <Mail className="h-4 w-4 text-blue-500 group-hover:text-white transition-colors" />
+                            </div>
+                            <span className="text-sm font-medium text-foreground ivy-font">Email Analysis</span>
                           </div>
-                          <span className="text-sm font-medium ivy-font">{securityAnalytics.summary.byType.deepfake || 0}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-foreground ivy-font">{securityAnalytics.summary.byType.email || 0}</span>
+                            <div className="text-xs text-muted-foreground">
+                              {securityAnalytics.summary.total > 0 ? `${((securityAnalytics.summary.byType.email / securityAnalytics.summary.total) * 100).toFixed(0)}%` : '0%'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-transparent hover:from-amber-500/20 transition-all duration-200 group cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-amber-500/20 group-hover:bg-amber-500 transition-colors">
+                              <Video className="h-4 w-4 text-amber-500 group-hover:text-white transition-colors" />
+                            </div>
+                            <span className="text-sm font-medium text-foreground ivy-font">Deepfake Detection</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-foreground ivy-font">{securityAnalytics.summary.byType.deepfake || 0}</span>
+                            <div className="text-xs text-muted-foreground">
+                              {securityAnalytics.summary.total > 0 ? `${((securityAnalytics.summary.byType.deepfake / securityAnalytics.summary.total) * 100).toFixed(0)}%` : '0%'}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                  {/* Enhanced Severity Distribution */}
+                  <Card className="border-border/40 backdrop-blur-sm bg-gradient-to-br from-card/80 to-card/40 shadow-xl hover:shadow-2xl transition-all duration-300">
                     <CardHeader>
-                      <CardTitle className="ivy-font">Severity Distribution</CardTitle>
-                      <CardDescription className="ivy-font">
+                      <CardTitle className="ivy-font text-lg font-semibold flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-orange-500" />
+                        Severity Distribution
+                      </CardTitle>
+                      <CardDescription className="ivy-font text-xs">
                         Breakdown by threat severity level
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={320}>
                         <BarChart
                           data={[
-                            { severity: 'Critical', count: securityAnalytics.summary.bySeverity.CRITICAL || 0 },
-                            { severity: 'High', count: securityAnalytics.summary.bySeverity.HIGH || 0 },
-                            { severity: 'Medium', count: securityAnalytics.summary.bySeverity.MEDIUM || 0 },
-                            { severity: 'Low', count: securityAnalytics.summary.bySeverity.LOW || 0 }
+                            { severity: 'Critical', count: securityAnalytics.summary.bySeverity.CRITICAL || 0, color: '#ef4444' },
+                            { severity: 'High', count: securityAnalytics.summary.bySeverity.HIGH || 0, color: '#f97316' },
+                            { severity: 'Medium', count: securityAnalytics.summary.bySeverity.MEDIUM || 0, color: '#eab308' },
+                            { severity: 'Low', count: securityAnalytics.summary.bySeverity.LOW || 0, color: '#22c55e' }
                           ]}
+                          margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
-                          <XAxis dataKey="severity" stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '12px' }} />
-                          <YAxis stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '12px' }} />
+                          <defs>
+                            <linearGradient id="criticalGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8} />
+                              <stop offset="100%" stopColor="#ef4444" stopOpacity={0.3} />
+                            </linearGradient>
+                            <linearGradient id="highGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#f97316" stopOpacity={0.8} />
+                              <stop offset="100%" stopColor="#f97316" stopOpacity={0.3} />
+                            </linearGradient>
+                            <linearGradient id="mediumGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#eab308" stopOpacity={0.8} />
+                              <stop offset="100%" stopColor="#eab308" stopOpacity={0.3} />
+                            </linearGradient>
+                            <linearGradient id="lowGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#22c55e" stopOpacity={0.8} />
+                              <stop offset="100%" stopColor="#22c55e" stopOpacity={0.3} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e2e8f0'} opacity={0.3} />
+                          <XAxis 
+                            dataKey="severity" 
+                            stroke={isDarkMode ? '#94a3b8' : '#64748b'} 
+                            style={{ fontSize: '13px', fontWeight: '500' }}
+                            tickLine={false}
+                          />
+                          <YAxis 
+                            stroke={isDarkMode ? '#94a3b8' : '#64748b'} 
+                            style={{ fontSize: '12px' }}
+                            tickLine={false}
+                            axisLine={false}
+                          />
                           <Tooltip
                             contentStyle={{
                               backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
                               border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
-                              borderRadius: '8px'
+                              borderRadius: '12px',
+                              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                              padding: '12px'
                             }}
+                            cursor={{ fill: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)', radius: 8 }}
                           />
-                          <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                            <Cell fill="#ef4444" />
-                            <Cell fill="#f97316" />
-                            <Cell fill="#eab308" />
-                            <Cell fill="#22c55e" />
+                          <Bar 
+                            dataKey="count" 
+                            radius={[12, 12, 0, 0]}
+                            animationBegin={0}
+                            animationDuration={800}
+                          >
+                            <Cell fill="url(#criticalGradient)" />
+                            <Cell fill="url(#highGradient)" />
+                            <Cell fill="url(#mediumGradient)" />
+                            <Cell fill="url(#lowGradient)" />
                           </Bar>
                         </BarChart>
                       </ResponsiveContainer>
+                      <div className="mt-6 grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full bg-red-500" />
+                            <span className="text-xs font-medium text-red-500">Critical</span>
+                          </div>
+                          <div className="text-xl font-bold text-foreground">{securityAnalytics.summary.bySeverity.CRITICAL || 0}</div>
+                        </div>
+                        <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full bg-orange-500" />
+                            <span className="text-xs font-medium text-orange-500">High</span>
+                          </div>
+                          <div className="text-xl font-bold text-foreground">{securityAnalytics.summary.bySeverity.HIGH || 0}</div>
+                        </div>
+                        <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                            <span className="text-xs font-medium text-yellow-500">Medium</span>
+                          </div>
+                          <div className="text-xl font-bold text-foreground">{securityAnalytics.summary.bySeverity.MEDIUM || 0}</div>
+                        </div>
+                        <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <span className="text-xs font-medium text-green-500">Low</span>
+                          </div>
+                          <div className="text-xl font-bold text-foreground">{securityAnalytics.summary.bySeverity.LOW || 0}</div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
