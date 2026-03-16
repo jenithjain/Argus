@@ -1,0 +1,53 @@
+# ── Python ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+.env/
+
+# ── Model weights (too large for git) ──────────────────
+*.pth
+*.pt
+*.onnx
+*.h5
+*.pkl
+*.bin
+weights/
+
+# ── Node / Next.js ─────────────────────────────────────
+ARGUS/node_modules/
+ARGUS/.next/
+ARGUS/out/
+ARGUS/.env
+ARGUS/.env.local
+ARGUS/.env.production
+ARGUS/.env*.local
+ARGUS/npm-debug.log*
+ARGUS/yarn-debug.log*
+ARGUS/yarn-error.log*
+
+# ── Dataset (too large for git) ─────────────────────────
+dataset/
+Deepfake_Dataset*/
+*.ipynb
+
+# ── OS / IDE ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Secrets ─────────────────────────────────────────────
+.env
+.env.local
+*.key
+*.pem

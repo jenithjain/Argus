@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,8 @@ import {
 import {
   ArrowUpRight, ArrowDownRight, BookOpen, TrendingUp,
   Users, Activity, GitBranch, FileText, Sparkles, Brain,
-  PenTool, Target, Network, Shield
+  PenTool, Target, Network, Shield, Radio, Eye, Zap,
+  AlertTriangle, CheckCircle, HelpCircle, XCircle, Clock, Cpu, Layers
 } from "lucide-react";
 
 // Threat Detection Data
@@ -110,6 +111,15 @@ export default function Dashboard() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [chartColors, setChartColors] = useState(CHART_COLORS.light);
 
+  // ── Live Detection State ─────────────────────────────────────────
+  const [liveConnected, setLiveConnected] = useState(false);
+  const [backendOnline, setBackendOnline] = useState(false);
+  const [liveResult, setLiveResult] = useState(null);
+  const [liveLog, setLiveLog] = useState([]);
+  const [probHistory, setProbHistory] = useState([]);
+  const eventSourceRef = useRef(null);
+  const logEndRef = useRef(null);
+
   useEffect(() => {
     const updateTheme = () => {
       const isDark = document.documentElement.classList.contains('dark');
@@ -127,6 +137,59 @@ export default function Dashboard() {
     
     return () => observer.disconnect();
   }, []);
+
+  // ── SSE connection to receive live detection results ──────────────
+  useEffect(() => {
+    const es = new EventSource('/api/ingest-result');
+    eventSourceRef.current = es;
+
+    es.onopen = () => setLiveConnected(true);
+    es.onerror = () => setLiveConnected(false);
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'connected') {
+          setLiveConnected(true);
+          return;
+        }
+        if (data.type === 'detection') {
+          setLiveResult(data);
+          setLiveLog((prev) => {
+            const next = [...prev, data].slice(-30); // keep last 30
+            return next;
+          });
+          setProbHistory((prev) => {
+            const next = [...prev, {
+              frame: data.frame_count,
+              fake: Math.round((data.fake_probability || 0) * 100),
+              avg: Math.round((data.temporal_average || 0) * 100),
+            }].slice(-50);
+            return next;
+          });
+        }
+      } catch {}
+    };
+
+    return () => es.close();
+  }, []);
+
+  // ── Poll Flask backend health ─────────────────────────────────────
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const r = await fetch('http://localhost:5000/health', { signal: AbortSignal.timeout(3000) });
+        setBackendOnline(r.ok);
+      } catch { setBackendOnline(false); }
+    };
+    check();
+    const intv = setInterval(check, 5000);
+    return () => clearInterval(intv);
+  }, []);
+
+  // Auto-scroll log
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [liveLog]);
 
   const PIE_COLORS = [
     chartColors.primary,
@@ -227,6 +290,10 @@ export default function Dashboard() {
             <TabsTrigger value="cashflow" className="ivy-font">Scan Timeline</TabsTrigger>
             <TabsTrigger value="investments" className="ivy-font">Detection Stats</TabsTrigger>
             <TabsTrigger value="transactions" className="ivy-font">Threat Incidents</TabsTrigger>
+            <TabsTrigger value="livedetection" className="ivy-font flex items-center gap-1.5">
+              <Radio className="h-3 w-3 animate-pulse text-red-500" />
+              Live Detection
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -699,6 +766,265 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* ══════════════════════════════════════════════════════════
+              LIVE DETECTION TAB
+              ═══════════════════════════════════════════════════════ */}
+          <TabsContent value="livedetection" className="space-y-4">
+            {/* Status Bar */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge variant="outline" className={`flex items-center gap-1.5 px-3 py-1 ${backendOnline ? 'border-emerald-500/50 text-emerald-500' : 'border-red-500/50 text-red-500'}`}>
+                <span className={`w-2 h-2 rounded-full ${backendOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                Backend {backendOnline ? 'Online' : 'Offline'}
+              </Badge>
+              <Badge variant="outline" className={`flex items-center gap-1.5 px-3 py-1 ${liveConnected ? 'border-blue-500/50 text-blue-500' : 'border-yellow-500/50 text-yellow-500'}`}>
+                <span className={`w-2 h-2 rounded-full ${liveConnected ? 'bg-blue-500 animate-pulse' : 'bg-yellow-500'}`} />
+                SSE {liveConnected ? 'Connected' : 'Disconnected'}
+              </Badge>
+              {liveResult && (
+                <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 border-slate-500/50 text-slate-400">
+                  <Cpu className="h-3 w-3" />
+                  {liveResult.processing_time_ms || 0}ms/frame
+                </Badge>
+              )}
+              {liveResult && (
+                <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1 border-slate-500/50 text-slate-400">
+                  <Layers className="h-3 w-3" />
+                  {liveResult.analysis_mode === 'face+frame' ? 'Face + Frame' : 'Frame Only'}
+                </Badge>
+              )}
+            </div>
+
+            {!liveResult ? (
+              /* Empty state */
+              <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                  <Eye className="h-16 w-16 text-muted-foreground/30 mb-6" />
+                  <h3 className="text-xl font-semibold text-foreground mb-2">No Detection Data Yet</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Start the ARGUS browser extension on any tab with a video. Detection results will appear here in real-time as frames are analyzed.
+                  </p>
+                  <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className={`w-2 h-2 rounded-full ${backendOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    Backend: {backendOnline ? 'Ready' : 'Not running — start backend_server.py'}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              /* Live data UI */
+              <div className="space-y-4">
+                {/* Row 1: Verdict + Severity + Stats */}
+                <div className="grid gap-4 md:grid-cols-4">
+                  {/* Verdict */}
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50 col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Verdict</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-3">
+                        {liveResult.confidence_level === 'FAKE' && <XCircle className="h-8 w-8 text-red-500" />}
+                        {liveResult.confidence_level === 'REAL' && <CheckCircle className="h-8 w-8 text-emerald-500" />}
+                        {(liveResult.confidence_level === 'UNCERTAIN' || !liveResult.confidence_level) && <HelpCircle className="h-8 w-8 text-yellow-500" />}
+                        <span className={`text-2xl font-bold ${
+                          liveResult.confidence_level === 'FAKE' ? 'text-red-500' :
+                          liveResult.confidence_level === 'REAL' ? 'text-emerald-500' : 'text-yellow-500'
+                        }`}>
+                          {liveResult.confidence_level || 'UNCERTAIN'}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Severity */}
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50 col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Severity</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className={`h-8 w-8 ${
+                          liveResult.severity === 'CRITICAL' ? 'text-red-500' :
+                          liveResult.severity === 'HIGH' ? 'text-orange-500' :
+                          liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
+                        }`} />
+                        <span className={`text-2xl font-bold ${
+                          liveResult.severity === 'CRITICAL' ? 'text-red-500' :
+                          liveResult.severity === 'HIGH' ? 'text-orange-500' :
+                          liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
+                        }`}>
+                          {liveResult.severity}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Fake Probability */}
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50 col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Fake Probability</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-foreground">
+                        {((liveResult.fake_probability || 0) * 100).toFixed(1)}%
+                      </div>
+                      <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            (liveResult.fake_probability || 0) > 0.55 ? 'bg-red-500' :
+                            (liveResult.fake_probability || 0) > 0.3 ? 'bg-yellow-500' : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${(liveResult.fake_probability || 0) * 100}%` }}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Frames & Stability */}
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50 col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Temporal Stats</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Frames</span>
+                        <span className="font-mono font-bold">{liveResult.frame_count || 0}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Temporal Avg</span>
+                        <span className="font-mono font-bold">{((liveResult.temporal_average || 0) * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Stability</span>
+                        <span className="font-mono font-bold">{((liveResult.stability_score || 0) * 100).toFixed(1)}%</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Row 2: Gemini Explanation + Recommended Action */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Brain className="h-5 w-5 text-purple-500" />
+                        AI Explanation
+                      </CardTitle>
+                      <CardDescription>
+                        Gemini 2.0 Flash — explains WHY this verdict was reached
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-foreground leading-relaxed">
+                        {liveResult.explanation || 'Waiting for first verdict change to generate explanation...'}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className={`border-border/40 backdrop-blur-sm ${
+                    liveResult.severity === 'CRITICAL' ? 'bg-red-500/5 border-red-500/20' :
+                    liveResult.severity === 'HIGH' ? 'bg-orange-500/5 border-orange-500/20' :
+                    liveResult.severity === 'MEDIUM' ? 'bg-yellow-500/5 border-yellow-500/20' :
+                    'bg-emerald-500/5 border-emerald-500/20'
+                  }`}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Shield className={`h-5 w-5 ${
+                          liveResult.severity === 'CRITICAL' ? 'text-red-500' :
+                          liveResult.severity === 'HIGH' ? 'text-orange-500' :
+                          liveResult.severity === 'MEDIUM' ? 'text-yellow-500' : 'text-emerald-500'
+                        }`} />
+                        Recommended Action
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-foreground font-medium">
+                        {liveResult.action || 'No action needed.'}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Row 3: Live probability chart */}
+                {probHistory.length > 1 && (
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-blue-500" />
+                        Live Probability Timeline
+                      </CardTitle>
+                      <CardDescription>
+                        Per-frame fake probability and rolling temporal average
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <AreaChart data={probHistory}>
+                          <defs>
+                            <linearGradient id="colorLiveFake" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
+                          <XAxis dataKey="frame" stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '11px' }} />
+                          <YAxis domain={[0, 100]} stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '11px' }} />
+                          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#fff', border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`, borderRadius: '8px', color: isDarkMode ? '#f1f5f9' : '#0f172a' }} />
+                          <Area type="monotone" dataKey="fake" stroke="#ef4444" fillOpacity={1} fill="url(#colorLiveFake)" strokeWidth={2} name="Fake %" />
+                          <Line type="monotone" dataKey="avg" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Temporal Avg" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Row 4: Frame log */}
+                <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-amber-500" />
+                      Frame Analysis Log
+                    </CardTitle>
+                    <CardDescription>
+                      Last {liveLog.length} frames analyzed in real-time
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-64 overflow-y-auto space-y-1 font-mono text-xs">
+                      {liveLog.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">Waiting for frames...</p>
+                      ) : (
+                        liveLog.map((entry, i) => (
+                          <div key={i} className={`flex items-center gap-3 px-3 py-1.5 rounded ${
+                            entry.confidence_level === 'FAKE' ? 'bg-red-500/5' :
+                            entry.confidence_level === 'REAL' ? 'bg-emerald-500/5' : 'bg-muted/30'
+                          }`}>
+                            <span className="text-muted-foreground w-12">#{entry.frame_count}</span>
+                            <span className={`w-20 font-semibold ${
+                              entry.confidence_level === 'FAKE' ? 'text-red-500' :
+                              entry.confidence_level === 'REAL' ? 'text-emerald-500' : 'text-yellow-500'
+                            }`}>
+                              {entry.confidence_level || 'UNCERTAIN'}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {entry.analysis_mode === 'face+frame' ? 'Face+Frame' : 'Frame'}
+                            </span>
+                            <span className="text-foreground">
+                              Fake: {((entry.fake_probability || 0) * 100).toFixed(0)}%
+                            </span>
+                            <span className="text-muted-foreground">
+                              {entry.processing_time_ms || 0}ms
+                            </span>
+                          </div>
+                        ))
+                      )}
+                      <div ref={logEndRef} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
         </Tabs>
 
         {/* Quick Actions */}
