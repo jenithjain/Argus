@@ -1,6 +1,6 @@
 // Popup script for controlling the extension
 let isDetecting = false;
-const DEFAULT_BACKEND_URL = 'https://YOUR-USERNAME-YOUR-SPACE.hf.space';
+const DEFAULT_BACKEND_URL = 'http://localhost:5000';
 
 // DOM elements
 const startBtn = document.getElementById('startBtn');
@@ -131,7 +131,7 @@ startBtn.addEventListener('click', async () => {
       } else {
         const errorMsg = response?.error || 'Unknown error occurred';
         console.error('Detection failed:', errorMsg);
-        alert('Failed to start detection.\n\n' + errorMsg + '\n\nMake sure:\n1. Your Hugging Face Space is running\n2. Backend URL is your hf.space URL\n3. CORS and endpoint /health are available');
+        alert('Failed to start detection.\n\n' + errorMsg + '\n\nMake sure:\n1. Backend server is running (python backend_server.py)\n2. Backend URL is set to http://localhost:5000\n3. No firewall is blocking port 5000');
       }
     });
   } catch (error) {

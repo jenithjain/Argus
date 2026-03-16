@@ -32,23 +32,23 @@ source venv/bin/activate
 ```
 
 ### 3. Install Dependencies
-Make sure you are in the `argus/` directory and your virtual environment is activated, then run:
+Make sure you are in the `argus/backend/` directory and your virtual environment is activated, then run:
 
 ```bash
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 *(Note: The `requirements.txt` includes heavy packages like `torch`, `torchvision`, `opencv-python`, config-related libraries, etc. This may take a few minutes).*
 
 ### 4. Model Weights
-The pre-trained model file `best_model.pth` (approx. 19MB) is included directly in this repository. 
-You **do not** need to train the model yourself. The script is already configured to load the weights automatically on startup.
+The pre-trained model file `best_model.pth` (approx. 19MB) is included in `backend/weights/`.
 
 ### 5. Start the Server
 Once everything is installed, start the local Flask server:
 
 ```bash
-python backend_server.py
+cd backend
+python server.py
 ```
 
 You should see an output indicating the models are loaded and the server is running on `http://localhost:5000`.

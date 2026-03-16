@@ -1,6 +1,6 @@
 // Background service worker for managing tab capture and communication
 let activeDetectionTabId = null;
-const DEFAULT_BACKEND_URL = 'https://YOUR-USERNAME-YOUR-SPACE.hf.space';
+const DEFAULT_BACKEND_URL = 'http://localhost:5000';
 
 function normalizeBackendUrl(url) {
   return (url || DEFAULT_BACKEND_URL).trim().replace(/\/$/, '');
