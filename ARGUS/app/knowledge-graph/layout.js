@@ -25,21 +25,38 @@ export default function KnowledgeGraphLayout({ children }) {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="pointer-events-auto">
+      {/* StaggeredMenu - positioned in top-right corner only */}
+      <div className="fixed inset-0 z-50 pointer-events-none">
+        <div className="pointer-events-none w-full h-full">
+          <style>{`
+            .kg-menu .staggered-menu-header .sm-logo,
+            .kg-menu .staggered-menu-header > div:first-child {
+              display: none !important;
+            }
+            .kg-menu .staggered-menu-header {
+              justify-content: flex-end !important;
+              padding: 0.75rem 1rem !important;
+            }
+            .kg-menu .sm-toggle .sm-icon {
+              order: -1;
+            }
+            .kg-menu .sm-toggle-textWrap {
+              margin-right: 0 !important;
+              margin-left: 0.5em;
+            }
+          `}</style>
           <StaggeredMenu
             position="right"
-            isFixed={true}
-            logoUrl="/chain-forecast.svg"
+            isFixed={false}
+            logoUrl=""
             accentColor="#22c55e"
             colors={["#0f172a", "#111827", "#1f2937"]}
             menuButtonColor={menuBtnColor}
             openMenuButtonColor="#22c55e"
+            className="kg-menu"
             items={[
               { label: "Home", link: "/", ariaLabel: "Go to Home" },
               { label: "Dashboard", link: "/dashboard", ariaLabel: "View Dashboard" },
-              { label: "Analytics", link: "/analytics", ariaLabel: "Security Analytics" },
-              { label: "Threat Analysis", link: "/campaign", ariaLabel: "AI Threat Analysis" },
               { label: "Knowledge Graph", link: "/knowledge-graph", ariaLabel: "Threat Intelligence Graph" },
               { label: "Assistant", link: "/assistant", ariaLabel: "AI Assistant" },
               { label: "Profile", link: "/profile", ariaLabel: "View Profile" },
