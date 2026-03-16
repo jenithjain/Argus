@@ -21,6 +21,7 @@
       <span class="module-dot active" title="Deepfake Module">DF</span>
       <span class="module-dot active" title="URL Scanner">URL</span>
       <span class="module-dot active" title="Email Shield">MAIL</span>
+      <span class="module-dot" title="Prompt Injection Shield">PI</span>
     </div>
     <button class="pill-expand" id="expandBtn" title="Open dashboard">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -136,6 +137,26 @@
           <div class="mr-row"><span class="mr-label">Status</span><span class="mr-val" id="mail-verdict">-</span></div>
           <div class="mr-row"><span class="mr-label">Links Found</span><span class="mr-val" id="mail-links">-</span></div>
           <div class="mr-row"><span class="mr-label">Threats</span><span class="mr-val" id="mail-threats">-</span></div>
+        </div>
+      </div>
+
+      <div class="module-card" id="mod-pi">
+        <div class="module-header">
+          <div class="module-icon pi-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.36C17.25 22.15 21 17.25 21 12V7L12 2z" stroke="currentColor" stroke-width="2"/>
+              <line x1="12" y1="8" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="12" cy="16" r="1" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="module-name">Prompt Injection</span>
+          <div class="module-status-dot" id="pi-status-dot"></div>
+        </div>
+        <div class="module-state" id="pi-state">Watching for AI chatbot pages</div>
+        <div class="module-result" id="pi-result" style="display:none;">
+          <div class="mr-row"><span class="mr-label">Verdict</span><span class="mr-val" id="pi-verdict">-</span></div>
+          <div class="mr-row"><span class="mr-label">Threat Type</span><span class="mr-val" id="pi-threat-type">-</span></div>
+          <div class="mr-row"><span class="mr-label">Score</span><span class="mr-val" id="pi-score">-</span></div>
         </div>
       </div>
 

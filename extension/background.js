@@ -622,6 +622,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('[ARGUS BG] userId set to:', _cachedUserId);
       sendResponse({ ok: true });
       return true;
+    case 'analyzePromptInjection':
+      handleAnalyzePromptInjection(message.payload, sendResponse);
+      return true;
+    case 'piThreatNotification':
+      // Show Chrome notification for prompt injection
+      chrome.notifications.create({
+        type:    'basic',
+        iconUrl: 'icons/icon48.png',
+        title:   `ARGUS — Prompt Injection ${message.score >= 0.6 ? 'Blocked' : 'Warning'}`,
+        message: `${message.summary || 'Suspicious prompt detected'} on ${message.site || 'AI chatbot'}`,
+      }).catch(() => {});
+      sendResponse({ ok: true });
+      return true;
+    case 'piScanResult':
+      // Forward to popup
+      chrome.runtime.sendMessage(message).catch(() => {});
+      break;
+    case 'piModuleActive':
+      // Forward to popup
+      chrome.runtime.sendMessage(message).catch(() => {});
+      break;
   }
 });
 
@@ -840,4 +861,29 @@ async function handleSendInteraction(data) {
   }
 }
 
-console.log('[ARGUS] Background service worker v2 loaded — URL scanner, deepfake, email shield active');
+console.log('[ARGUS] Background service worker v2 loaded — URL scanner, deepfake, email shield, prompt injection active');
+
+// ─── Prompt Injection Analysis Proxy ──────────────────────────────────────────
+// Content scripts cannot fetch localhost — route through background SW
+
+async function handleAnalyzePromptInjection(payload, sendResponse) {
+  try {
+    const userId = await getUserId();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const resp = await fetch(`${GEMINI_PROXY_URL}/analyze-prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, userId }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!resp.ok) throw new Error(`API returned ${resp.status}`);
+    const result = await resp.json();
+    sendResponse(result);
+  } catch (err) {
+    console.warn('[ARGUS PI] Analysis proxy failed:', err.message);
+    // Return CLEAR on failure to avoid blocking legitimate prompts
+    sendResponse({ verdict: 'CLEAR', score: 0, action: 'ALLOW', threat_type: null, explanation: null });
+  }
+}
