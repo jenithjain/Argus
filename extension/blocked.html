@@ -6,6 +6,42 @@
   <title>ARGUS — Access Blocked</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    /* ═══════════════════════════════════════════════════════════
+       CUSTOM SCROLLBAR STYLING (matches extension theme)
+       ══════════════════════════════════════════════════════════ */
+    
+    /* Scrollbar for all elements */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    
+    /* Webkit browsers (Chrome, Edge, Safari) */
+    *::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    *::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 10px;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 10px;
+      transition: background 0.2s ease;
+    }
+    
+    *::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, var(--red) 40%, var(--border));
+    }
+    
+    *::-webkit-scrollbar-thumb:active {
+      background: color-mix(in srgb, var(--red) 60%, var(--border));
+    }
+    
     :root {
       --bg:         #070b14;
       --card:       #0d1526;
@@ -16,6 +52,16 @@
       --text:       #e8f0fe;
       --muted:      #5a7298;
     }
+    :root[data-theme="light"] {
+      --bg:         #f3f7ff;
+      --card:       #ffffff;
+      --border:     #d4e1f7;
+      --red:        #d62f45;
+      --amber:      #c27a00;
+      --green:      #0ca678;
+      --text:       #0b1a33;
+      --muted:      #526a90;
+    }
     body {
       background: var(--bg);
       color: var(--text);
@@ -25,16 +71,22 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
+      transition: background 0.3s ease, color 0.3s ease;
     }
     .card {
       background: var(--card);
-      border: 1px solid rgba(239,68,68,0.35);
-      border-radius: 16px;
+      border: 1.5px solid rgba(239,68,68,0.35);
+      border-radius: 20px;
       padding: 40px 36px;
       max-width: 540px;
       width: 100%;
-      box-shadow: 0 0 40px rgba(239,68,68,0.12), 0 8px 32px rgba(0,0,0,0.7);
+      box-shadow: 0 0 40px rgba(239,68,68,0.12), 0 8px 32px rgba(0,0,0,0.3);
       text-align: center;
+      transition: all 0.3s ease;
+    }
+    :root[data-theme="light"] .card {
+      border-color: rgba(214,47,69,0.35);
+      box-shadow: 0 0 40px rgba(214,47,69,0.12), 0 8px 32px rgba(0,0,0,0.1);
     }
     .shield-icon {
       width: 72px;
@@ -47,6 +99,11 @@
       align-items: center;
       justify-content: center;
       animation: pulse 2s ease-in-out infinite;
+      transition: all 0.3s ease;
+    }
+    :root[data-theme="light"] .shield-icon {
+      background: rgba(214,47,69,0.1);
+      border-color: rgba(214,47,69,0.3);
     }
     @keyframes pulse {
       0%,100% { box-shadow: 0 0 8px rgba(239,68,68,0.2); }
@@ -57,14 +114,19 @@
       align-items: center;
       gap: 6px;
       background: rgba(239,68,68,0.12);
-      border: 1px solid rgba(239,68,68,0.3);
-      border-radius: 6px;
+      border: 1.5px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
       padding: 4px 12px;
       font-size: 11px;
       font-weight: 700;
       color: var(--red);
       letter-spacing: 0.1em;
       margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+    :root[data-theme="light"] .badge {
+      background: rgba(214,47,69,0.12);
+      border-color: rgba(214,47,69,0.3);
     }
     h1 {
       font-size: 24px;
@@ -81,11 +143,15 @@
     }
     .url-box {
       background: rgba(0,0,0,0.4);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
       padding: 12px 16px;
       margin-bottom: 16px;
       text-align: left;
+      transition: all 0.3s ease;
+    }
+    :root[data-theme="light"] .url-box {
+      background: rgba(0,0,0,0.03);
     }
     .url-label {
       font-size: 10px;
@@ -103,11 +169,16 @@
     }
     .reason-box {
       background: rgba(239,68,68,0.05);
-      border: 1px solid rgba(239,68,68,0.2);
-      border-radius: 8px;
+      border: 1.5px solid rgba(239,68,68,0.2);
+      border-radius: 12px;
       padding: 12px 16px;
       margin-bottom: 24px;
       text-align: left;
+      transition: all 0.3s ease;
+    }
+    :root[data-theme="light"] .reason-box {
+      background: rgba(214,47,69,0.05);
+      border-color: rgba(214,47,69,0.2);
     }
     .reason-label {
       font-size: 10px;
@@ -133,14 +204,14 @@
       flex: 1;
       height: 6px;
       background: var(--border);
-      border-radius: 3px;
+      border-radius: 4px;
       overflow: hidden;
       max-width: 160px;
     }
     .score-fill {
       height: 100%;
       background: var(--red);
-      border-radius: 3px;
+      border-radius: 4px;
       transition: width 0.6s ease;
     }
     .score-num {
@@ -158,27 +229,45 @@
       background: var(--green);
       color: #070b14;
       border: none;
-      border-radius: 8px;
+      border-radius: 12px;
       font-size: 13px;
       font-weight: 800;
       cursor: pointer;
       letter-spacing: 0.04em;
-      transition: opacity 0.2s;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0,255,136,0.2);
     }
-    .btn-back:hover { opacity: 0.85; }
+    :root[data-theme="light"] .btn-back {
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(12,166,120,0.2);
+    }
+    .btn-back:hover { 
+      opacity: 0.85;
+      transform: translateY(-1px);
+    }
     .btn-proceed {
       padding: 12px 20px;
       background: rgba(239,68,68,0.1);
       color: var(--red);
-      border: 1px solid rgba(239,68,68,0.3);
-      border-radius: 8px;
+      border: 1.5px solid rgba(239,68,68,0.3);
+      border-radius: 12px;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       letter-spacing: 0.03em;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
     }
-    .btn-proceed:hover { background: rgba(239,68,68,0.18); }
+    :root[data-theme="light"] .btn-proceed {
+      background: rgba(214,47,69,0.1);
+      border-color: rgba(214,47,69,0.3);
+    }
+    .btn-proceed:hover { 
+      background: rgba(239,68,68,0.18);
+      transform: translateY(-1px);
+    }
+    :root[data-theme="light"] .btn-proceed:hover {
+      background: rgba(214,47,69,0.18);
+    }
     .argus-footer {
       margin-top: 24px;
       font-size: 10px;
@@ -226,53 +315,13 @@
     </div>
 
     <div class="actions">
-      <button class="btn-back" onclick="goBack()">← Go Back (Safe)</button>
-      <button class="btn-proceed" onclick="proceedAnyway()" id="proceedBtn">Proceed anyway (risky)</button>
+      <button class="btn-back" id="btnBack">← Go Back (Safe)</button>
+      <button class="btn-proceed" id="proceedBtn">Proceed anyway (risky)</button>
     </div>
 
     <div class="argus-footer"><span>ARGUS</span> — Adaptive Risk & Generative Understanding System v2.0</div>
   </div>
 
-  <script>
-    const params     = new URLSearchParams(window.location.search);
-    const blockedUrl = params.get('url') || '';
-    const reason     = params.get('reason') || 'Malicious URL detected by ARGUS AI analysis';
-    const parsedScore = Number.parseInt(params.get('score') || '85', 10);
-    const score = Number.isFinite(parsedScore) ? Math.max(0, Math.min(parsedScore, 100)) : 85;
-
-    // URLSearchParams already decodes values, so avoid decodeURIComponent again.
-    document.getElementById('blockedUrl').textContent   = blockedUrl || '(unknown)';
-    document.getElementById('threatReason').textContent = reason;
-    document.getElementById('scoreNum').textContent     = String(score);
-    setTimeout(() => {
-      document.getElementById('scoreFill').style.width = score + '%';
-    }, 100);
-
-    function goBack() {
-      if (window.history.length > 1) {
-        window.history.go(-2); // -2 to skip the blocked page
-      } else {
-        window.close();
-      }
-    }
-
-    function proceedAnyway() {
-      if (!blockedUrl) return;
-      const shouldProceed = window.confirm(
-        'WARNING: You are about to visit a site flagged as MALICIOUS by ARGUS.\n\n' +
-        'This site may steal your credentials, infect your device with malware, or perform phishing attacks.\n\n' +
-        'Are you absolutely sure you want to proceed?'
-      );
-      if (shouldProceed) {
-        window.location.href = blockedUrl;
-      }
-    }
-
-    // Auto-hide proceed button after 5s to discourage click
-    setTimeout(() => {
-      const btn = document.getElementById('proceedBtn');
-      if (btn) btn.style.opacity = '0.4';
-    }, 5000);
-  </script>
+  <script src="blocked-script.js"></script>
 </body>
 </html>

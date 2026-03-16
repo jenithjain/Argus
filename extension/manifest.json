@@ -6,6 +6,7 @@
   "permissions": [
     "storage",
     "tabs",
+    "activeTab",
     "scripting",
     "webNavigation",
     "webRequest",
@@ -44,7 +45,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["overlay.html", "overlay.css", "blocked.html"],
+      "resources": [
+        "overlay.html", 
+        "overlay.css", 
+        "blocked.html", 
+        "blocked-script.js",
+        "analyzing.html",
+        "analyzing-script.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

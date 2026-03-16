@@ -5,6 +5,7 @@
 const DEFAULT_BACKEND    = 'http://localhost:5000';
 const GEMINI_PROXY_URL   = 'http://localhost:3000/api'; // Next.js backend proxies Gemini
 const BLOCKED_PAGE       = chrome.runtime.getURL('blocked.html');
+const ANALYZING_PAGE     = chrome.runtime.getURL('analyzing.html');
 
 let activeDetectionTabId = null;
 const autoStartCooldownByTab = new Map();
@@ -96,6 +97,56 @@ function buildBlockedPageUrl(targetUrl, reason, score) {
   return `${BLOCKED_PAGE}?url=${encodeURIComponent(targetUrl)}&reason=${encodeURIComponent(reason || 'Malicious URL detected')}&score=${Math.max(0, Math.min(score || 0, 100))}`;
 }
 
+function needsScanning(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    const hostname = u.hostname.toLowerCase();
+    
+    // Skip localhost and common safe domains
+    const SKIP_DOMAINS = [
+      'localhost', '127.0.0.1',
+      'google.com', 'googleapis.com', 'gstatic.com', 'youtube.com',
+      'microsoft.com', 'windows.com', 'office.com', 'azure.com', 'live.com',
+      'github.com', 'githubusercontent.com',
+      'cloudflare.com', 'amazon.com', 'amazonaws.com',
+      'apple.com', 'icloud.com',
+      'mozilla.org', 'firefox.com',
+      'wikipedia.org', 'wikimedia.org',
+    ];
+    
+    if (SKIP_DOMAINS.some(safe => hostname === safe || hostname.endsWith('.' + safe))) {
+      return false;
+    }
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Helper to safely check if tab exists before sending messages
+async function tabExists(tabId) {
+  try {
+    await chrome.tabs.get(tabId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Helper to safely send message to tab
+async function sendMessageToTab(tabId, message) {
+  try {
+    const exists = await tabExists(tabId);
+    if (!exists) return false;
+    
+    await chrome.tabs.sendMessage(tabId, message);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function blockNow(tabId, targetUrl, reason, score) {
   const blockedUrl = buildBlockedPageUrl(targetUrl, reason, score);
   chrome.tabs.stop(tabId).catch(() => {});
@@ -169,55 +220,133 @@ async function scanUrl(urlStr) {
 // ─── Navigation Interceptor ─────────────────────────────────────────────────
 
 // Tracks URLs being scanned to avoid double-processing
-const pendingScans = new Set();
+const pendingScans = new Map(); // url -> { tabId, timestamp, result }
+const analyzingTabs = new Map(); // tabId -> { targetUrl, startTime }
+
+// Store analysis results temporarily
+const analysisResults = new Map(); // url -> result
 
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return; // main frame only
   const url = details.url;
+  
+  // Skip internal pages
   if (!url || url.startsWith('chrome') || url.startsWith('about:') || url.startsWith('data:')) return;
+  
+  // Skip our own analyzing and blocked pages
+  if (url.startsWith(ANALYZING_PAGE) || url.startsWith(BLOCKED_PAGE)) return;
 
-  const immediate = getImmediateLexicalBlock(url);
-  if (immediate) {
-    chrome.runtime.sendMessage({ action: 'urlScanResult', result: immediate }).catch(() => {});
-    blockNow(details.tabId, url, immediate.reason, immediate.score);
+  // Check if this URL needs scanning (skip common safe domains)
+  const shouldScan = needsScanning(url);
+  if (!shouldScan) return;
+
+  // Check if we already have a result for this URL
+  if (analysisResults.has(url)) {
+    const result = analysisResults.get(url);
+    if (result.verdict === 'HIGH_RISK' || result.verdict === 'MALICIOUS') {
+      // Block it
+      blockNow(details.tabId, url, result.reason || 'Malicious URL detected', result.score || 0);
+      return;
+    }
+    // Otherwise allow navigation
     return;
   }
 
-  if (pendingScans.has(url)) return;
-  pendingScans.add(url);
+  // Show analyzing page immediately
+  const analyzingUrl = `${ANALYZING_PAGE}?url=${encodeURIComponent(url)}&tabId=${details.tabId}`;
+  analyzingTabs.set(details.tabId, { targetUrl: url, startTime: Date.now() });
+  
+  // Perform analysis FIRST, then decide
+  if (!pendingScans.has(url)) {
+    pendingScans.set(url, { tabId: details.tabId, timestamp: Date.now() });
+    
+    // Start analysis immediately (don't await - let it run in background)
+    (async () => {
+      try {
+        // Wait a bit for analyzing page to load
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Check immediate lexical threats
+        const immediate = getImmediateLexicalBlock(url);
+        if (immediate) {
+          analysisResults.set(url, immediate);
+          chrome.runtime.sendMessage({ action: 'urlScanResult', result: immediate }).catch(() => {});
+          
+          // If tab exists and is on analyzing page, send result
+          const exists = await tabExists(details.tabId);
+          if (exists) {
+            chrome.tabs.get(details.tabId).then((tab) => {
+              if (tab && tab.url && tab.url.startsWith(ANALYZING_PAGE)) {
+                sendMessageToTab(details.tabId, {
+                  action: 'analysisComplete',
+                  tabId: details.tabId.toString(),
+                  result: immediate
+                });
+              }
+            }).catch(() => {});
+            
+            chrome.action.setBadgeText({ text: '!', tabId: details.tabId }).catch(() => {});
+            chrome.action.setBadgeBackgroundColor({ color: '#ef4444', tabId: details.tabId }).catch(() => {});
+          }
+          
+          chrome.notifications.create({
+            type:    'basic',
+            iconUrl: 'icons/icon48.png',
+            title:   'ARGUS — Malicious URL Blocked',
+            message: `Blocked: ${url.slice(0, 80)}`,
+          }).catch(() => {});
+          return;
+        }
 
-  try {
-    const result = await scanUrl(url);
-    if (!result) return;
+        // Perform full scan
+        const result = await scanUrl(url);
+        if (result) {
+          analysisResults.set(url, result);
+          chrome.runtime.sendMessage({ action: 'urlScanResult', result }).catch(() => {});
 
-    // Notify popup
-    chrome.runtime.sendMessage({ action: 'urlScanResult', result }).catch(() => {});
+          // If tab exists and is on analyzing page, send result
+          const exists = await tabExists(details.tabId);
+          if (exists) {
+            chrome.tabs.get(details.tabId).then((tab) => {
+              if (tab && tab.url && tab.url.startsWith(ANALYZING_PAGE)) {
+                sendMessageToTab(details.tabId, {
+                  action: 'analysisComplete',
+                  tabId: details.tabId.toString(),
+                  result: result
+                });
+              }
+            }).catch(() => {});
 
-    // Badge
-    if (result.verdict === 'HIGH_RISK' || result.verdict === 'MALICIOUS') {
-      chrome.action.setBadgeText({ text: '!', tabId: details.tabId });
-      chrome.action.setBadgeBackgroundColor({ color: '#ef4444', tabId: details.tabId });
-    } else if (result.verdict === 'SUSPICIOUS') {
-      chrome.action.setBadgeText({ text: '?', tabId: details.tabId });
-      chrome.action.setBadgeBackgroundColor({ color: '#f59e0b', tabId: details.tabId });
-    } else {
-      chrome.action.setBadgeText({ text: '', tabId: details.tabId });
-    }
-
-    // Block malicious URLs — redirect to blocked page
-    if (result.verdict === 'HIGH_RISK' || result.verdict === 'MALICIOUS') {
-      blockNow(details.tabId, url, result.reason || 'Malicious URL detected', result.score || 0);
-
-      chrome.notifications.create({
-        type:    'basic',
-        iconUrl: 'icons/icon48.png',
-        title:   'ARGUS — Malicious URL Blocked',
-        message: `Blocked: ${url.slice(0, 80)}`,
-      });
-    }
-  } finally {
-    setTimeout(() => pendingScans.delete(url), 5000);
+            // Update badge
+            if (result.verdict === 'HIGH_RISK' || result.verdict === 'MALICIOUS') {
+              chrome.action.setBadgeText({ text: '!', tabId: details.tabId }).catch(() => {});
+              chrome.action.setBadgeBackgroundColor({ color: '#ef4444', tabId: details.tabId }).catch(() => {});
+              
+              chrome.notifications.create({
+                type:    'basic',
+                iconUrl: 'icons/icon48.png',
+                title:   'ARGUS — Malicious URL Blocked',
+                message: `Blocked: ${url.slice(0, 80)}`,
+              }).catch(() => {});
+            } else if (result.verdict === 'SUSPICIOUS') {
+              chrome.action.setBadgeText({ text: '?', tabId: details.tabId }).catch(() => {});
+              chrome.action.setBadgeBackgroundColor({ color: '#f59e0b', tabId: details.tabId }).catch(() => {});
+            } else {
+              chrome.action.setBadgeText({ text: '', tabId: details.tabId }).catch(() => {});
+            }
+          }
+        }
+      } finally {
+        setTimeout(() => {
+          pendingScans.delete(url);
+          analysisResults.delete(url); // Clean up after 30 seconds
+        }, 30000);
+      }
+    })();
   }
+
+  // Redirect to analyzing page
+  chrome.tabs.update(details.tabId, { url: analyzingUrl });
 });
 
 // Also scan on tab update (for history-push SPAs)
@@ -226,38 +355,94 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     manuallyStoppedTabs.delete(tabId);
   }
 
-  if (changeInfo.status !== 'loading' || !changeInfo.url) return;
-  const url = changeInfo.url;
-  if (!url || url.startsWith('chrome') || url.startsWith('about:') || url.startsWith('data:')) return;
-
-  const immediate = getImmediateLexicalBlock(url);
-  if (immediate) {
-    chrome.runtime.sendMessage({ action: 'urlScanResult', result: immediate }).catch(() => {});
-    blockNow(tabId, url, immediate.reason, immediate.score);
+  // Don't interfere with analyzing or blocked pages
+  if (changeInfo.url && (changeInfo.url.startsWith(ANALYZING_PAGE) || changeInfo.url.startsWith(BLOCKED_PAGE))) {
     return;
   }
 
-  if (pendingScans.has(url)) return;
-  pendingScans.add(url);
+  if (changeInfo.status !== 'loading' || !changeInfo.url) return;
+  const url = changeInfo.url;
+  
+  // Skip internal pages
+  if (!url || url.startsWith('chrome') || url.startsWith('about:') || url.startsWith('data:')) return;
 
-  try {
-    const result = await scanUrl(url);
-    if (!result) return;
-    chrome.runtime.sendMessage({ action: 'urlScanResult', result }).catch(() => {});
+  // Check if this URL needs scanning
+  const shouldScan = needsScanning(url);
+  if (!shouldScan) return;
 
-    if (result.verdict === 'HIGH_RISK' || result.verdict === 'MALICIOUS') {
-      chrome.action.setBadgeText({ text: '!', tabId });
-      chrome.action.setBadgeBackgroundColor({ color: '#ef4444', tabId });
-      blockNow(tabId, url, result.reason || 'Malicious URL detected', result.score || 0);
-    } else if (result.verdict === 'SUSPICIOUS') {
-      chrome.action.setBadgeText({ text: '?', tabId });
-      chrome.action.setBadgeBackgroundColor({ color: '#f59e0b', tabId });
-    } else {
-      chrome.action.setBadgeText({ text: '', tabId });
-    }
-  } finally {
-    setTimeout(() => pendingScans.delete(url), 5000);
+  // If already analyzing or have result, skip
+  if (analyzingTabs.has(tabId) || analysisResults.has(url)) return;
+
+  // This is a new navigation - trigger the same flow
+  const analyzingUrl = `${ANALYZING_PAGE}?url=${encodeURIComponent(url)}&tabId=${tabId}`;
+  analyzingTabs.set(tabId, { targetUrl: url, startTime: Date.now() });
+
+  if (!pendingScans.has(url)) {
+    pendingScans.set(url, { tabId, timestamp: Date.now() });
+    
+    (async () => {
+      try {
+        const immediate = getImmediateLexicalBlock(url);
+        if (immediate) {
+          analysisResults.set(url, immediate);
+          chrome.runtime.sendMessage({ action: 'urlScanResult', result: immediate }).catch(() => {});
+          
+          const exists = await tabExists(tabId);
+          if (exists) {
+            chrome.tabs.get(tabId).then((tab) => {
+              if (tab && tab.url && tab.url.startsWith(ANALYZING_PAGE)) {
+                sendMessageToTab(tabId, {
+                  action: 'analysisComplete',
+                  tabId: tabId.toString(),
+                  result: immediate
+                });
+              }
+            }).catch(() => {});
+            
+            chrome.action.setBadgeText({ text: '!', tabId }).catch(() => {});
+            chrome.action.setBadgeBackgroundColor({ color: '#ef4444', tabId }).catch(() => {});
+          }
+          return;
+        }
+
+        const result = await scanUrl(url);
+        if (result) {
+          analysisResults.set(url, result);
+          chrome.runtime.sendMessage({ action: 'urlScanResult', result }).catch(() => {});
+
+          const exists = await tabExists(tabId);
+          if (exists) {
+            chrome.tabs.get(tabId).then((tab) => {
+              if (tab && tab.url && tab.url.startsWith(ANALYZING_PAGE)) {
+                sendMessageToTab(tabId, {
+                  action: 'analysisComplete',
+                  tabId: tabId.toString(),
+                  result: result
+                });
+              }
+            }).catch(() => {});
+
+            if (result.verdict === 'HIGH_RISK' || result.verdict === 'MALICIOUS') {
+              chrome.action.setBadgeText({ text: '!', tabId }).catch(() => {});
+              chrome.action.setBadgeBackgroundColor({ color: '#ef4444', tabId }).catch(() => {});
+            } else if (result.verdict === 'SUSPICIOUS') {
+              chrome.action.setBadgeText({ text: '?', tabId }).catch(() => {});
+              chrome.action.setBadgeBackgroundColor({ color: '#f59e0b', tabId }).catch(() => {});
+            } else {
+              chrome.action.setBadgeText({ text: '', tabId }).catch(() => {});
+            }
+          }
+        }
+      } finally {
+        setTimeout(() => {
+          pendingScans.delete(url);
+          analysisResults.delete(url);
+        }, 30000);
+      }
+    })();
   }
+
+  chrome.tabs.update(tabId, { url: analyzingUrl });
 });
 
 // Auto-start deepfake detection when a tab fully loads and has video content
@@ -265,7 +450,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete' || !tab?.url) return;
   if (manuallyStoppedTabs.has(tabId)) return;
   if (activeDetectionTabId === tabId) return;
-  if (tab.url.startsWith(BLOCKED_PAGE) || tab.url.startsWith('chrome://') || tab.url.startsWith('about:') || tab.url.startsWith('data:')) return;
+  if (tab.url.startsWith(BLOCKED_PAGE) || tab.url.startsWith(ANALYZING_PAGE) || 
+      tab.url.startsWith('chrome://') || tab.url.startsWith('about:') || tab.url.startsWith('data:')) return;
 
   maybeAutoStartDeepfake(tabId);
 });
@@ -324,11 +510,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'analyzeFrame':
       handleAnalyzeFrame(message.imageData, sendResponse);
       return true;
+    case 'captureVisibleTab':
+      handleCaptureVisibleTab(sender.tab.id, sendResponse);
+      return true;
     case 'resetBackend':
       handleResetBackend(sendResponse);
       return true;
     case 'scanUrl':
       scanUrl(message.url).then(result => sendResponse(result || {}));
+      return true;
+    case 'getAnalysisResult':
+      // Check if we have a cached result for this URL
+      if (message.url && analysisResults.has(message.url)) {
+        const result = analysisResults.get(message.url);
+        sendResponse({ hasResult: true, result });
+      } else {
+        sendResponse({ hasResult: false });
+      }
       return true;
     case 'detectionResult':
       chrome.runtime.sendMessage(message).catch(() => {});
@@ -359,6 +557,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // ─── Deepfake Frame Analysis ─────────────────────────────────────────────────
+
+async function handleCaptureVisibleTab(tabId, sendResponse) {
+  try {
+    const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+      format: 'jpeg',
+      quality: 85
+    });
+    sendResponse({ success: true, dataUrl });
+  } catch (error) {
+    console.error('[ARGUS DF] Capture visible tab failed:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
 
 async function handleAnalyzeFrame(imageDataUrl, sendResponse) {
   try {
@@ -486,6 +697,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   }
   autoStartCooldownByTab.delete(tabId);
   manuallyStoppedTabs.delete(tabId);
+  analyzingTabs.delete(tabId);
 });
 
 console.log('[ARGUS] Background service worker v2 loaded — URL scanner, deepfake, email shield active');

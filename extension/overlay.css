@@ -1,5 +1,40 @@
 * { box-sizing: border-box; }
 
+/* ═══════════════════════════════════════════════════════════
+   CUSTOM SCROLLBAR STYLING (matches extension theme)
+   ══════════════════════════════════════════════════════════ */
+
+/* Scrollbar for all elements */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Webkit browsers (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: color-mix(in srgb, var(--accent) 60%, var(--border));
+}
+
 :root {
   --font-ui: "Space Grotesk", "Trebuchet MS", "Segoe UI", sans-serif;
   --bg: #070d18;

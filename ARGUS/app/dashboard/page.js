@@ -120,6 +120,10 @@ export default function Dashboard() {
   const eventSourceRef = useRef(null);
   const logEndRef = useRef(null);
 
+  // ── Security Analytics State ─────────────────────────────────────
+  const [securityAnalytics, setSecurityAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
   useEffect(() => {
     const updateTheme = () => {
       const isDark = document.documentElement.classList.contains('dark');
@@ -190,6 +194,29 @@ export default function Dashboard() {
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [liveLog]);
+
+  // ── Fetch Security Analytics ─────────────────────────────────────
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setAnalyticsLoading(true);
+        const response = await fetch('/api/security-analytics?days=30&limit=100');
+        const data = await response.json();
+        if (data.success) {
+          setSecurityAnalytics(data);
+        }
+      } catch (error) {
+        console.error('[Dashboard] Failed to fetch security analytics:', error);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchAnalytics, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const PIE_COLORS = [
     chartColors.primary,
@@ -293,6 +320,10 @@ export default function Dashboard() {
             <TabsTrigger value="livedetection" className="ivy-font flex items-center gap-1.5">
               <Radio className="h-3 w-3 animate-pulse text-red-500" />
               Live Detection
+            </TabsTrigger>
+            <TabsTrigger value="securityanalytics" className="ivy-font flex items-center gap-1.5">
+              <Shield className="h-3 w-3" />
+              Security Analytics
             </TabsTrigger>
           </TabsList>
 
@@ -1018,6 +1049,328 @@ export default function Dashboard() {
                         ))
                       )}
                       <div ref={logEndRef} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ══════════════════════════════════════════════════════════
+              SECURITY ANALYTICS TAB
+              ═══════════════════════════════════════════════════════ */}
+          <TabsContent value="securityanalytics" className="space-y-4">
+            {analyticsLoading ? (
+              <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                <CardContent className="flex items-center justify-center py-16">
+                  <div className="text-center">
+                    <Cpu className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4 animate-pulse" />
+                    <p className="text-muted-foreground">Loading security analytics...</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : !securityAnalytics ? (
+              <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                <CardContent className="flex items-center justify-center py-16">
+                  <div className="text-center">
+                    <Shield className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No security analytics available</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {/* Summary Cards */}
+                <div className="grid gap-4 md:grid-cols-4">
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Total Detections</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-foreground">{securityAnalytics.summary.total}</div>
+                      <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Threats Blocked</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-red-500">{securityAnalytics.summary.recentThreats}</div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {((securityAnalytics.summary.recentThreats / securityAnalytics.summary.total) * 100).toFixed(1)}% threat rate
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Average Risk Score</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-yellow-500">{securityAnalytics.summary.avgScore}</div>
+                      <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            securityAnalytics.summary.avgScore >= 70 ? 'bg-red-500' :
+                            securityAnalytics.summary.avgScore >= 40 ? 'bg-yellow-500' : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${securityAnalytics.summary.avgScore}%` }}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">Critical Alerts</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-orange-500">
+                        {securityAnalytics.summary.bySeverity.CRITICAL || 0}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Require immediate action</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Detection Type Distribution */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader>
+                      <CardTitle className="ivy-font">Detection by Type</CardTitle>
+                      <CardDescription className="ivy-font">
+                        Distribution across URL, Email, and Deepfake modules
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'URL Analysis', value: securityAnalytics.summary.byType.url || 0 },
+                              { name: 'Email Analysis', value: securityAnalytics.summary.byType.email || 0 },
+                              { name: 'Deepfake Detection', value: securityAnalytics.summary.byType.deepfake || 0 }
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            <Cell fill={chartColors.primary} />
+                            <Cell fill={chartColors.secondary} />
+                            <Cell fill={chartColors.tertiary} />
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
+                              border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+                              borderRadius: '8px'
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors.primary }} />
+                            <span className="text-sm text-muted-foreground ivy-font">URL Analysis</span>
+                          </div>
+                          <span className="text-sm font-medium ivy-font">{securityAnalytics.summary.byType.url || 0}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors.secondary }} />
+                            <span className="text-sm text-muted-foreground ivy-font">Email Analysis</span>
+                          </div>
+                          <span className="text-sm font-medium ivy-font">{securityAnalytics.summary.byType.email || 0}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors.tertiary }} />
+                            <span className="text-sm text-muted-foreground ivy-font">Deepfake Detection</span>
+                          </div>
+                          <span className="text-sm font-medium ivy-font">{securityAnalytics.summary.byType.deepfake || 0}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader>
+                      <CardTitle className="ivy-font">Severity Distribution</CardTitle>
+                      <CardDescription className="ivy-font">
+                        Breakdown by threat severity level
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart
+                          data={[
+                            { severity: 'Critical', count: securityAnalytics.summary.bySeverity.CRITICAL || 0 },
+                            { severity: 'High', count: securityAnalytics.summary.bySeverity.HIGH || 0 },
+                            { severity: 'Medium', count: securityAnalytics.summary.bySeverity.MEDIUM || 0 },
+                            { severity: 'Low', count: securityAnalytics.summary.bySeverity.LOW || 0 }
+                          ]}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
+                          <XAxis dataKey="severity" stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '12px' }} />
+                          <YAxis stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '12px' }} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
+                              border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                            <Cell fill="#ef4444" />
+                            <Cell fill="#f97316" />
+                            <Cell fill="#eab308" />
+                            <Cell fill="#22c55e" />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Time Series Chart */}
+                {securityAnalytics.timeSeries && securityAnalytics.timeSeries.length > 0 && (
+                  <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                    <CardHeader>
+                      <CardTitle className="ivy-font">Detection Timeline</CardTitle>
+                      <CardDescription className="ivy-font">
+                        Daily detection activity and threat trends
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={securityAnalytics.timeSeries}>
+                          <defs>
+                            <linearGradient id="colorDetections" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={chartColors.secondary} stopOpacity={0.3} />
+                              <stop offset="95%" stopColor={chartColors.secondary} stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="colorThreats" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
+                          <XAxis dataKey="date" stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '11px' }} />
+                          <YAxis stroke={isDarkMode ? '#94a3b8' : '#64748b'} style={{ fontSize: '11px' }} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
+                              border: `1px solid ${isDarkMode ? '#334155' : '#e2e8f0'}`,
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Legend />
+                          <Area
+                            type="monotone"
+                            dataKey="count"
+                            stroke={chartColors.secondary}
+                            fillOpacity={1}
+                            fill="url(#colorDetections)"
+                            strokeWidth={2}
+                            name="Total Detections"
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="threats"
+                            stroke="#ef4444"
+                            fillOpacity={1}
+                            fill="url(#colorThreats)"
+                            strokeWidth={2}
+                            name="Threats Blocked"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Recent Detections Log */}
+                <Card className="border-border/40 backdrop-blur-sm bg-card/50">
+                  <CardHeader>
+                    <CardTitle className="ivy-font">Recent Detections</CardTitle>
+                    <CardDescription className="ivy-font">
+                      Latest security threats and analysis results
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {securityAnalytics.recentDetections && securityAnalytics.recentDetections.length > 0 ? (
+                        securityAnalytics.recentDetections.map((detection, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-4 rounded-lg border ${
+                              detection.severity === 'CRITICAL' ? 'border-red-500/30 bg-red-500/5' :
+                              detection.severity === 'HIGH' ? 'border-orange-500/30 bg-orange-500/5' :
+                              detection.severity === 'MEDIUM' ? 'border-yellow-500/30 bg-yellow-500/5' :
+                              'border-emerald-500/30 bg-emerald-500/5'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {detection.detectionType.toUpperCase()}
+                                  </Badge>
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-xs ${
+                                      detection.severity === 'CRITICAL' ? 'border-red-500 text-red-500' :
+                                      detection.severity === 'HIGH' ? 'border-orange-500 text-orange-500' :
+                                      detection.severity === 'MEDIUM' ? 'border-yellow-500 text-yellow-500' :
+                                      'border-emerald-500 text-emerald-500'
+                                    }`}
+                                  >
+                                    {detection.severity}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(detection.detectedAt).toLocaleString()}
+                                  </span>
+                                </div>
+                                <p className="text-sm font-medium text-foreground mb-1">
+                                  {detection.detectionType === 'url' && detection.url}
+                                  {detection.detectionType === 'email' && `${detection.emailSender} - ${detection.emailSubject}`}
+                                  {detection.detectionType === 'deepfake' && `Frame ${detection.frameCount} - ${detection.verdict}`}
+                                </p>
+                                <p className="text-xs text-muted-foreground">{detection.reason}</p>
+                                {detection.signals && detection.signals.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {detection.signals.slice(0, 3).map((signal, i) => (
+                                      <span key={i} className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                                        {signal}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-right ml-4">
+                                <div className={`text-2xl font-bold ${
+                                  detection.verdict === 'MALICIOUS' || detection.verdict === 'FAKE' ? 'text-red-500' :
+                                  detection.verdict === 'HIGH_RISK' ? 'text-orange-500' :
+                                  detection.verdict === 'SUSPICIOUS' || detection.verdict === 'UNCERTAIN' ? 'text-yellow-500' :
+                                  'text-emerald-500'
+                                }`}>
+                                  {detection.score}
+                                </div>
+                                <div className="text-xs text-muted-foreground">Risk Score</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center text-muted-foreground py-8">No recent detections</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

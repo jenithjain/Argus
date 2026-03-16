@@ -19,6 +19,8 @@ if (!window.__argusState) {
     emailObserver:  null,
     scannedLinks:   new WeakSet(),
     emailScanned:   false,
+    lastBackendReset: 0,
+    emailCapsule:   null,  // Email warning capsule element
   };
 }
 const state = window.__argusState;
@@ -160,6 +162,14 @@ function scanEmailContent(rootEl) {
       summary,
     },
   });
+
+  // Show email capsule if threats detected
+  if (totalThreats > 0) {
+    showEmailCapsule(totalThreats, summary, malicious.length > 0 ? 'danger' : 'warning');
+  } else {
+    // Hide capsule if no threats
+    hideEmailCapsule();
+  }
 }
 
 function injectLinkBadge(anchor, level, label) {
@@ -183,6 +193,195 @@ function injectLinkBadge(anchor, level, label) {
     cursor: default;
   `;
   anchor.insertAdjacentElement('afterend', badge);
+}
+
+// ─── Email Warning Capsule ────────────────────────────────────────────────────
+
+function showEmailCapsule(threatCount, summary, level) {
+  // Remove existing capsule if any
+  hideEmailCapsule();
+
+  const capsule = document.createElement('div');
+  capsule.id = 'argus-email-capsule';
+  capsule.className = `argus-capsule argus-capsule-${level}`;
+  
+  const isDanger = level === 'danger';
+  const bgColor = isDanger ? 'rgba(239, 68, 68, 0.95)' : 'rgba(245, 158, 11, 0.95)';
+  const borderColor = isDanger ? '#ef4444' : '#f59e0b';
+  const textColor = '#ffffff';
+  
+  capsule.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999998;
+    background: ${bgColor};
+    border: 2px solid ${borderColor};
+    border-radius: 24px;
+    padding: 12px 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px ${borderColor}40;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: ${textColor};
+    animation: argusSlideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    max-width: 600px;
+  `;
+
+  // Add animation keyframes
+  if (!document.getElementById('argus-capsule-styles')) {
+    const style = document.createElement('style');
+    style.id = 'argus-capsule-styles';
+    style.textContent = `
+      @keyframes argusSlideDown {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+      @keyframes argusPulse {
+        0%, 100% {
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px ${borderColor}40;
+        }
+        50% {
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 30px ${borderColor}80;
+        }
+      }
+      .argus-capsule:hover {
+        transform: translateX(-50%) scale(1.02);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 30px ${borderColor}60 !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Eye icon
+  const eyeIcon = document.createElement('div');
+  eyeIcon.innerHTML = `
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;">
+      <ellipse cx="12" cy="12" rx="10" ry="6" stroke="${textColor}" stroke-width="2"/>
+      <circle cx="12" cy="12" r="3" fill="${textColor}"/>
+      <circle cx="12" cy="12" r="1.2" fill="${bgColor}"/>
+    </svg>
+  `;
+  eyeIcon.style.cssText = 'display: flex; align-items: center; flex-shrink: 0;';
+
+  // Content
+  const content = document.createElement('div');
+  content.style.cssText = 'flex: 1; min-width: 0;';
+  
+  const title = document.createElement('div');
+  title.textContent = `ARGUS — ${isDanger ? 'Malicious' : 'Suspicious'} Email Detected`;
+  title.style.cssText = `
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  `;
+
+  const subtitle = document.createElement('div');
+  subtitle.textContent = `${threatCount} threat${threatCount > 1 ? 's' : ''} found`;
+  subtitle.style.cssText = `
+    font-size: 11px;
+    opacity: 0.9;
+  `;
+
+  content.appendChild(title);
+  content.appendChild(subtitle);
+
+  // Badge
+  const badge = document.createElement('div');
+  badge.textContent = threatCount.toString();
+  badge.style.cssText = `
+    background: ${textColor};
+    color: ${bgColor};
+    font-size: 14px;
+    font-weight: 800;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  `;
+
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.innerHTML = '×';
+  closeBtn.style.cssText = `
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: ${textColor};
+    font-size: 24px;
+    line-height: 1;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  `;
+  closeBtn.onmouseover = () => {
+    closeBtn.style.background = 'rgba(255, 255, 255, 0.3)';
+  };
+  closeBtn.onmouseout = () => {
+    closeBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+  };
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();
+    hideEmailCapsule();
+  };
+
+  capsule.appendChild(eyeIcon);
+  capsule.appendChild(content);
+  capsule.appendChild(badge);
+  capsule.appendChild(closeBtn);
+
+  // Add pulse animation for danger
+  if (isDanger) {
+    capsule.style.animation = 'argusSlideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1), argusPulse 2s ease-in-out infinite';
+  }
+
+  // Click to show details
+  capsule.onclick = () => {
+    if (summary) {
+      alert(`ARGUS Email Threat Detection\n\n${summary}\n\nCheck the email content for suspicious links marked with warning badges.`);
+    }
+  };
+
+  document.body.appendChild(capsule);
+  state.emailCapsule = capsule;
+
+  // Auto-hide after 10 seconds for warnings, 15 for danger
+  setTimeout(() => {
+    hideEmailCapsule();
+  }, isDanger ? 15000 : 10000);
+}
+
+function hideEmailCapsule() {
+  if (state.emailCapsule) {
+    state.emailCapsule.style.animation = 'none';
+    state.emailCapsule.style.opacity = '0';
+    state.emailCapsule.style.transform = 'translateX(-50%) translateY(-20px)';
+    setTimeout(() => {
+      if (state.emailCapsule) {
+        state.emailCapsule.remove();
+        state.emailCapsule = null;
+      }
+    }, 300);
+  }
 }
 
 // Watch for email open in Gmail / Outlook
@@ -294,7 +493,7 @@ function removeOverlay() {
   }
 }
 
-// Capture current page as image using canvas
+// Capture current page as image using chrome.tabs.captureVisibleTab
 async function captureTab() {
   return new Promise((resolve, reject) => {
     try {
@@ -331,35 +530,21 @@ async function captureTab() {
         return;
       }
 
-      // Create canvas to capture video frame
-      const canvas = document.createElement('canvas');
-      
-      // Use video dimensions, with fallback and cap for performance
-      let vw = video.videoWidth || 640;
-      let vh = video.videoHeight || 480;
-      
-      // Cap resolution for faster processing (maintain aspect ratio)
-      const maxDim = 720;
-      if (vw > maxDim || vh > maxDim) {
-        const scale = maxDim / Math.max(vw, vh);
-        vw = Math.round(vw * scale);
-        vh = Math.round(vh * scale);
-      }
-      
-      canvas.width = vw;
-      canvas.height = vh;
-
-      if (canvas.width === 0 || canvas.height === 0) {
-        reject(new Error('Video has no dimensions'));
-        return;
-      }
-
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Convert to JPEG for smaller payload (faster transfer)
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      resolve(dataUrl);
+      // Use chrome.tabs.captureVisibleTab to capture the entire visible tab
+      // This bypasses CORS restrictions
+      chrome.runtime.sendMessage({ 
+        action: 'captureVisibleTab' 
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (response && response.dataUrl) {
+          resolve(response.dataUrl);
+        } else {
+          reject(new Error('Failed to capture tab'));
+        }
+      });
     } catch (error) {
       reject(error);
     }
@@ -393,7 +578,10 @@ async function analyzeFrame(imageDataUrl) {
 
 // Start capturing and analyzing
 async function startDetection(interval = 1000) {
-  if (state.isCapturing) return;
+  if (state.isCapturing) {
+    console.log('[ARGUS DF] Already capturing, skipping start');
+    return;
+  }
 
   state.isCapturing = true;
   createOverlay();
@@ -404,19 +592,29 @@ async function startDetection(interval = 1000) {
   }, 100);
 
   // Reset backend state so we start completely fresh (no previous verdict)
-  try {
-    await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: 'resetBackend' }, () => {
-        if (chrome.runtime.lastError) {
-          console.log('Could not reset backend on start:', chrome.runtime.lastError.message);
-        } else {
-          console.log('Backend detector reset on start');
-        }
-        resolve();
+  // Only reset if we haven't reset recently (prevent rapid resets)
+  const now = Date.now();
+  const lastReset = state.lastBackendReset || 0;
+  const resetCooldown = 3000; // 3 seconds cooldown between resets
+  
+  if (now - lastReset > resetCooldown) {
+    state.lastBackendReset = now;
+    try {
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'resetBackend' }, () => {
+          if (chrome.runtime.lastError) {
+            console.log('[ARGUS DF] Could not reset backend on start:', chrome.runtime.lastError.message);
+          } else {
+            console.log('[ARGUS DF] Backend detector reset on start');
+          }
+          resolve();
+        });
       });
-    });
-  } catch (e) {
-    console.log('Could not reset backend on start:', e);
+    } catch (e) {
+      console.log('[ARGUS DF] Could not reset backend on start:', e);
+    }
+  } else {
+    console.log('[ARGUS DF] Skipping backend reset (cooldown active)');
   }
 
   // Update overlay with initial status
@@ -449,27 +647,27 @@ async function startDetection(interval = 1000) {
       }
 
     } catch (error) {
-      console.error('Detection error:', error);
+      console.error('[ARGUS DF] Detection error:', error);
       
-      // Update overlay with error/disconnected state so it doesn't show stale data
-      updateOverlay({ 
-        status: 'error',
-        error_message: error.message 
-      });
-
-      // Reset backend so next successful connection starts fresh
-      try {
-        chrome.runtime.sendMessage({ action: 'resetBackend' }, () => {});
-      } catch (e) { /* ignore */ }
-      
-      // Send error to popup (ignore if popup is closed)
-      try {
-        chrome.runtime.sendMessage({
-          action: 'detectionError',
-          error: error.message
+      // Only update overlay with error if it's not a temporary issue
+      if (error.message !== 'No video found on page' && 
+          error.message !== 'Video not ready yet' &&
+          error.message !== 'Video has ended') {
+        // Update overlay with error/disconnected state so it doesn't show stale data
+        updateOverlay({ 
+          status: 'error',
+          error_message: error.message 
         });
-      } catch (e) {
-        // Popup might be closed, ignore
+
+        // Send error to popup (ignore if popup is closed)
+        try {
+          chrome.runtime.sendMessage({
+            action: 'detectionError',
+            error: error.message
+          });
+        } catch (e) {
+          // Popup might be closed, ignore
+        }
       }
     }
     // Schedule next capture using setTimeout (survives tab switches better)
@@ -483,7 +681,14 @@ async function startDetection(interval = 1000) {
 
 // Stop detection
 async function stopDetection() {
+  if (!state.isCapturing) {
+    console.log('[ARGUS DF] Not capturing, skipping stop');
+    return;
+  }
+  
+  console.log('[ARGUS DF] Stopping detection');
   state.isCapturing = false;
+  
   if (state.captureInterval) {
     clearInterval(state.captureInterval);
     state.captureInterval = null;
@@ -495,16 +700,26 @@ async function stopDetection() {
   removeOverlay();
 
   // Reset backend detector state via background service worker
-  try {
-    chrome.runtime.sendMessage({ action: 'resetBackend' }, () => {
-      if (chrome.runtime.lastError) {
-        console.log('Could not reset backend:', chrome.runtime.lastError.message);
-      } else {
-        console.log('Backend detector reset');
-      }
-    });
-  } catch (error) {
-    console.log('Could not reset backend:', error);
+  // Only if we haven't reset very recently
+  const now = Date.now();
+  const lastReset = state.lastBackendReset || 0;
+  const resetCooldown = 2000; // 2 seconds cooldown
+  
+  if (now - lastReset > resetCooldown) {
+    state.lastBackendReset = now;
+    try {
+      chrome.runtime.sendMessage({ action: 'resetBackend' }, () => {
+        if (chrome.runtime.lastError) {
+          console.log('[ARGUS DF] Could not reset backend on stop:', chrome.runtime.lastError.message);
+        } else {
+          console.log('[ARGUS DF] Backend detector reset on stop');
+        }
+      });
+    } catch (error) {
+      console.log('[ARGUS DF] Could not reset backend on stop:', error);
+    }
+  } else {
+    console.log('[ARGUS DF] Skipping backend reset on stop (cooldown active)');
   }
 
   // Send stopped message (ignore if popup is closed)

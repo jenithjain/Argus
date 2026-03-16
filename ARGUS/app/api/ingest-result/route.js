@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import connectDB from "@/lib/mongodb";
+import SecurityAnalytics from "@/lib/models/SecurityAnalytics";
 
 // ── In-memory event queue (single-user hackathon demo) ──────────────
 // Listeners are SSE connections from the dashboard
@@ -121,6 +123,41 @@ export async function OPTIONS() {
   });
 }
 
+// ── Log deepfake detection to database ──────────────────────────────
+async function logDeepfakeDetection(data, severity, action, explanation) {
+  try {
+    await connectDB();
+    
+    const verdict = data.confidence_level || 'UNCERTAIN';
+    const score = Math.round((data.fake_probability || 0) * 100);
+    
+    await SecurityAnalytics.create({
+      userId: null, // Will be set when user auth is available
+      detectionType: 'deepfake',
+      detectedAt: new Date(),
+      verdict,
+      score,
+      severity,
+      fakeProbability: data.fake_probability,
+      frameCount: data.frame_count,
+      analysisMode: data.analysis_mode,
+      reason: `Frame analysis: ${data.analysis_mode || 'unknown'}`,
+      signals: [
+        `Temporal average: ${((data.temporal_average || 0) * 100).toFixed(1)}%`,
+        `Stability: ${((data.stability_score || 0) * 100).toFixed(1)}%`,
+        `Processing: ${data.processing_time_ms || 0}ms`
+      ],
+      explanation,
+      action,
+      processingTimeMs: data.processing_time_ms,
+      sessionId: `deepfake-${Date.now()}`
+    });
+  } catch (error) {
+    console.error('[ARGUS] Error logging deepfake detection:', error);
+    throw error;
+  }
+}
+
 // ── POST: receive detection result from extension ───────────────────
 export async function POST(request) {
   try {
@@ -173,6 +210,11 @@ export async function POST(request) {
     // Broadcast to any connected dashboard SSE clients
     console.log(`[ARGUS INGEST] Broadcasting to ${listeners.size} SSE clients`);
     broadcastEvent(enrichedResult);
+
+    // Log to database (async, don't block response)
+    logDeepfakeDetection(data, severity, action, explanation).catch(err =>
+      console.error('[ARGUS INGEST] Failed to log to database:', err.message)
+    );
 
     return NextResponse.json({ received: true }, {
       status: 200,
