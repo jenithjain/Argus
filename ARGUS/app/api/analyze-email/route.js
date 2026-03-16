@@ -8,6 +8,98 @@ import { getCampaignClusters, attachEmailToCampaign } from '@/lib/graph-builder'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+const SUSPICIOUS_KEYWORDS = [
+  'urgent', 'verify', 'suspended', 'click here', 'confirm', 'password', 'account',
+  'invoice', 'wire transfer', 'gift card', 'bank', 'reset', 'security alert', 'immediately'
+];
+
+function sanitizeSignals(signals) {
+  const seen = new Set();
+  return (Array.isArray(signals) ? signals : [])
+    .map(s => String(s || '').trim())
+    .filter(Boolean)
+    .filter(s => {
+      const key = s.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 6)
+    .map(s => s.slice(0, 120));
+}
+
+function scoreToConfidence(score, verdict) {
+  const normalized = Math.max(0, Math.min(100, Number(score || 0))) / 100;
+  if (['MALICIOUS', 'HIGH_RISK'].includes(verdict)) return Number(normalized.toFixed(2));
+  if (verdict === 'CLEAR') return Number((1 - normalized).toFixed(2));
+  const distanceFromCenter = Math.abs(normalized - 0.5) * 2;
+  return Number(Math.max(0.5, distanceFromCenter).toFixed(2));
+}
+
+function extractHeuristicSignals(sender, subject, emailBody) {
+  const signals = [];
+  const senderLc = String(sender || '').toLowerCase();
+  const subjectLc = String(subject || '').toLowerCase();
+  const bodyLc = String(emailBody || '').toLowerCase();
+  const combined = `${subjectLc} ${bodyLc}`;
+
+  const kwHits = SUSPICIOUS_KEYWORDS.filter(k => combined.includes(k));
+  if (kwHits.length) {
+    signals.push(`Suspicious keywords: ${kwHits.slice(0, 4).join(', ')}`);
+  }
+
+  if (/no-reply|support|helpdesk|security/.test(senderLc) && /gmail\.com|yahoo\.com|outlook\.com/.test(senderLc)) {
+    signals.push('Sender uses role-based identity on public mail provider');
+  }
+
+  if (/verify|reset|suspend|locked|urgent|immediately/.test(subjectLc)) {
+    signals.push('Urgency or account pressure in subject line');
+  }
+
+  if (/http:\/\//.test(combined)) {
+    signals.push('Contains insecure HTTP link');
+  }
+
+  if (/\b(otp|password|pin|cvv|card|bank account)\b/.test(combined)) {
+    signals.push('Requests sensitive credential or payment data');
+  }
+
+  if (/\b(click here|act now|final warning|limited time)\b/.test(combined)) {
+    signals.push('Contains social engineering pressure phrase');
+  }
+
+  return sanitizeSignals(signals);
+}
+
+function buildExplainability({ sender, subject, emailBody, verdict, score, reason, modelSignals = [], fallbackLabel = null }) {
+  const heuristicSignals = extractHeuristicSignals(sender, subject, emailBody);
+  const signals = sanitizeSignals([
+    ...modelSignals,
+    ...heuristicSignals,
+    fallbackLabel ? `Source: ${fallbackLabel}` : null,
+  ]);
+
+  const safeReason = String(reason || '').trim();
+  const explanation = safeReason
+    ? `${safeReason} Evidence: ${signals.slice(0, 3).join('; ') || 'No high-risk indicators.'}`
+    : `Email risk analysis found ${signals.length ? signals.slice(0, 3).join('; ') : 'no strong malicious indicators'}.`;
+
+  const severity = computeSeverity(score);
+  const action = computeAction(verdict, severity);
+  const confidence = scoreToConfidence(score, verdict);
+
+  return {
+    verdict,
+    score,
+    reason: safeReason || 'Automated email analysis completed.',
+    signals,
+    explanation: explanation.slice(0, 420),
+    severity,
+    action,
+    confidence,
+  };
+}
+
 const SYSTEM_PROMPT = `You are a cybersecurity email analyst. Analyze the provided email and classify it as:
 - MALICIOUS: definitively dangerous (phishing, malware, scam, credential theft)
 - HIGH_RISK: very likely dangerous based on multiple strong signals
@@ -128,7 +220,7 @@ async function linkEmailToCampaignContext({ sender, subject, verdict, score, rea
 }
 
 // Log email analysis to database
-async function logEmailAnalysis(sender, subject, verdict, score, reason, signals) {
+async function logEmailAnalysis(sender, subject, verdict, score, reason, signals, explanation, action, severity, confidence) {
   try {
     console.log('[ARGUS Email Log] Starting log process...');
     console.log('[ARGUS Email Log] Input data:', { sender, subject, verdict, score, reason, signals });
@@ -136,9 +228,6 @@ async function logEmailAnalysis(sender, subject, verdict, score, reason, signals
     console.log('[ARGUS Email Log] Connecting to MongoDB...');
     await connectDB();
     console.log('[ARGUS Email Log] MongoDB connected successfully');
-    
-    const severity = computeSeverity(score);
-    const action = computeAction(verdict, severity);
     
     const logData = {
       userId: null,
@@ -151,7 +240,9 @@ async function logEmailAnalysis(sender, subject, verdict, score, reason, signals
       emailSubject: String(subject).slice(0, 300),
       reason: String(reason).slice(0, 300),
       signals: Array.isArray(signals) ? signals.map(s => String(s).slice(0, 100)) : [],
+      explanation: String(explanation || '').slice(0, 420),
       action: String(action),
+      confidence: Number(confidence || 0),
       sessionId: `email-${Date.now()}`
     };
     
@@ -198,12 +289,33 @@ export async function POST(request) {
       const verdict  = verdictOptions.includes(body.verdict) ? body.verdict : 'CLEAR';
       const score    = Math.max(0, Math.min(100, Math.round(body.score)));
       const reason   = String(body.reason).slice(0, 300);
-      const signals  = Array.isArray(body.signals) ? body.signals.slice(0, 5).map(s => String(s).slice(0, 100)) : [];
+      const signals  = Array.isArray(body.signals) ? body.signals : [];
       const links    = Array.isArray(body.links) ? body.links.slice(0, 20).map(l => String(l)) : [];
+      const explainable = buildExplainability({
+        sender,
+        subject,
+        emailBody,
+        verdict,
+        score,
+        reason,
+        modelSignals: signals,
+        fallbackLabel: 'extension-precomputed'
+      });
 
       try {
         console.log('[ARGUS Email] Attempting to log to database...');
-        const logResult = await logEmailAnalysis(sender, subject, verdict, score, reason, signals);
+        const logResult = await logEmailAnalysis(
+          sender,
+          subject,
+          explainable.verdict,
+          explainable.score,
+          explainable.reason,
+          explainable.signals,
+          explainable.explanation,
+          explainable.action,
+          explainable.severity,
+          explainable.confidence
+        );
         console.log('[ARGUS Email] Successfully logged pre-computed email analysis, ID:', logResult._id.toString());
         
         linkEmailToCampaignContext({ sender, subject, verdict, score, reason, signals, links })
@@ -228,10 +340,7 @@ export async function POST(request) {
           success: true,
           logged: true,
           logId: logResult._id.toString(),
-          verdict, 
-          score, 
-          reason, 
-          signals, 
+          ...explainable,
           sender, 
           subject 
         }, { headers: corsHeaders });
@@ -244,10 +353,7 @@ export async function POST(request) {
           success: true,
           logged: false,
           error: err.message,
-          verdict, 
-          score, 
-          reason, 
-          signals, 
+          ...explainable,
           sender, 
           subject 
         }, { headers: corsHeaders });
@@ -276,22 +382,27 @@ ${headers ? `Headers: ${JSON.stringify(headers).slice(0, 500)}` : ''}
     } catch (geminiError) {
       console.error('[ARGUS /api/analyze-email] Gemini error:', geminiError.message);
       
-      // Fallback: basic heuristic analysis
-      const suspiciousKeywords = ['urgent', 'verify', 'suspended', 'click here', 'confirm', 'password', 'account'];
-      const foundKeywords = suspiciousKeywords.filter(k => 
+      const foundKeywords = SUSPICIOUS_KEYWORDS.filter(k =>
         subject.toLowerCase().includes(k) || (emailBody && emailBody.toLowerCase().includes(k))
       );
-      
-      const score = Math.min(foundKeywords.length * 20, 80);
-      const verdict = score >= 60 ? 'SUSPICIOUS' : 'CLEAR';
-      
-      return NextResponse.json({
+
+      const score = Math.min(foundKeywords.length * 18, 85);
+      const verdict = score >= 70 ? 'HIGH_RISK' : score >= 40 ? 'SUSPICIOUS' : 'CLEAR';
+      const explainable = buildExplainability({
+        sender,
+        subject,
+        emailBody,
         verdict,
         score,
-        reason: foundKeywords.length > 0 
-          ? `Contains suspicious keywords: ${foundKeywords.join(', ')}`
-          : 'Basic analysis shows no obvious threats',
-        signals: ['Heuristic analysis only (AI unavailable)'],
+        reason: foundKeywords.length > 0
+          ? `Contains suspicious content indicators: ${foundKeywords.slice(0, 4).join(', ')}`
+          : 'Heuristic analysis found no obvious phishing indicators',
+        modelSignals: ['Gemini unavailable, used deterministic heuristic analysis'],
+        fallbackLabel: 'heuristic-fallback'
+      });
+
+      return NextResponse.json({
+        ...explainable,
         sender,
         subject
       }, { headers: corsHeaders });
@@ -321,11 +432,32 @@ ${headers ? `Headers: ${JSON.stringify(headers).slice(0, 500)}` : ''}
     const verdict = verdictOptions.includes(parsed.verdict) ? parsed.verdict : 'CLEAR';
     const score = typeof parsed.score === 'number' ? Math.max(0, Math.min(100, Math.round(parsed.score))) : 0;
     const reason = typeof parsed.reason === 'string' ? parsed.reason.slice(0, 300) : '';
-    const signals = Array.isArray(parsed.signals) ? parsed.signals.slice(0, 5).map(s => String(s).slice(0, 100)) : [];
+    const signals = Array.isArray(parsed.signals) ? parsed.signals : [];
     const links = Array.isArray(body.links) ? body.links.slice(0, 20).map(l => String(l)) : [];
+    const explainable = buildExplainability({
+      sender,
+      subject,
+      emailBody,
+      verdict,
+      score,
+      reason,
+      modelSignals: signals,
+      fallbackLabel: 'gemini+heuristic'
+    });
 
     // Log to database
-    logEmailAnalysis(sender, subject, verdict, score, reason, signals).catch(err =>
+    logEmailAnalysis(
+      sender,
+      subject,
+      explainable.verdict,
+      explainable.score,
+      explainable.reason,
+      explainable.signals,
+      explainable.explanation,
+      explainable.action,
+      explainable.severity,
+      explainable.confidence
+    ).catch(err =>
       console.error('[ARGUS] Failed to log email analysis:', err.message)
     );
 
@@ -339,19 +471,16 @@ ${headers ? `Headers: ${JSON.stringify(headers).slice(0, 500)}` : ''}
           emailId,
           sender,
           subject,
-          verdict,
-          score,
-          reason,
+          verdict: explainable.verdict,
+          score: explainable.score,
+          reason: explainable.reason,
           linkDomains: linkResult.linkDomains,
         });
       })
       .catch(() => {});
 
     return NextResponse.json({
-      verdict,
-      score,
-      reason,
-      signals,
+      ...explainable,
       sender,
       subject
     }, { headers: corsHeaders });

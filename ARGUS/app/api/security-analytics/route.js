@@ -133,6 +133,7 @@ export async function POST(request) {
       reason: body.reason,
       signals: body.signals || [],
       explanation: body.explanation,
+      confidence: body.confidence,
       action: body.action,
       processingTimeMs: body.processingTimeMs,
       sessionId: body.sessionId
