@@ -1,6 +1,7 @@
 // Knowledge Graph Builder - Inserts nodes and relationships into Neo4j
 import { runQuery } from './neo4j.js';
 import { enrichDomain, calculateRiskScore } from './domain-enrichment.js';
+import { sanitizeThreatEvent } from './anonymizer.js';
 import dbConnect from './mongodb.js';
 import InteractionLog from './models/InteractionLog.js';
 import ThreatLog from './models/ThreatLog.js';
@@ -66,13 +67,26 @@ export async function createInteraction(userId, domain, interactionData) {
     hasLoginForm,
   });
 
-  // Save to MongoDB
+  // Save to MongoDB (raw data stays in Mongo, only Neo4j is anonymized)
   try {
     await dbConnect();
     
     const threatLevel = interactionData.riskScore >= 70 ? 'high' 
       : interactionData.riskScore >= 50 ? 'medium'
       : interactionData.riskScore >= 30 ? 'low' : 'safe';
+
+    // Sanitize interaction data before Neo4j graph write
+    const sanitizedInteraction = await sanitizeThreatEvent({
+      userId,
+      domain,
+      url: interactionData.url,
+      title: interactionData.title,
+      hasLoginForm: interactionData.hasLoginForm,
+      riskScore: interactionData.riskScore,
+      threatLevel,
+      timestamp: interactionData.timestamp,
+    });
+    console.log('[Graph Builder] Sanitized interaction for Neo4j:', sanitizedInteraction.node_id);
 
     await InteractionLog.create({
       userId,
@@ -159,8 +173,12 @@ export async function enrichAndInsertDomain(domain) {
         country: enrichmentData.geolocation?.country,
         region: enrichmentData.geolocation?.region,
         city: enrichmentData.geolocation?.city,
-        latitude: enrichmentData.geolocation?.latitude,
-        longitude: enrichmentData.geolocation?.longitude,
+        latitude: enrichmentData.geolocation?.latitude
+          ? Math.round(enrichmentData.geolocation.latitude * 100) / 100
+          : null,
+        longitude: enrichmentData.geolocation?.longitude
+          ? Math.round(enrichmentData.geolocation.longitude * 100) / 100
+          : null,
       });
 
       // Insert hosting provider
@@ -313,6 +331,18 @@ export async function flagDomainAsThreat(domain, threatType, severity, reason, u
   `;
 
   const result = await runQuery(query, { domain, threatType, severity, reason });
+
+  // Sanitize for Neo4j audit trail
+  const sanitizedThreat = await sanitizeThreatEvent({
+    domain,
+    threat_type: threatType,
+    severity,
+    reason,
+    detectedAt: new Date().toISOString(),
+    userId,
+    userEmail,
+  });
+  console.log('[Graph Builder] Sanitized threat for Neo4j:', sanitizedThreat.node_id);
 
   // Save to MongoDB
   try {
