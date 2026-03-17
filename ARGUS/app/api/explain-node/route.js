@@ -2,16 +2,48 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export async function POST(request) {
-  try {
-    const { node } = await request.json();
+const REASONING_MODELS = ['gemini-3.1-pro', 'gemini-3.1-pro-preview', 'gemini-2.5-pro'];
 
-    if (!node) {
-      return NextResponse.json({ error: 'Node data required' }, { status: 400 });
+export async function POST(request) {
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const { node, graphSummary } = payload || {};
+
+  try {
+    if (!node && !graphSummary) {
+      return NextResponse.json({ error: 'Node data or graph summary required' }, { status: 400 });
+    }
+
+    const hasGemini = Boolean(process.env.GEMINI_API_KEY);
+
+    if (graphSummary) {
+      if (!hasGemini) {
+        return NextResponse.json({
+          detailedAnalysis: buildFallbackGraphAnalysis(graphSummary),
+          conclusion: buildFallbackConclusion(graphSummary),
+          fallback: true,
+        });
+      }
+
+      const prompt = buildGraphPrompt(graphSummary);
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const { text, modelUsed } = await generateWithFallback(genAI, prompt);
+      const parsed = parseGraphReasoningJson(text);
+
+      return NextResponse.json({
+        detailedAnalysis: parsed.detailedAnalysis,
+        conclusion: parsed.conclusion,
+        modelUsed,
+      });
     }
 
     // Check if Gemini API key is available
-    if (!process.env.GEMINI_API_KEY) {
+    if (!hasGemini) {
       console.error('[Explain Node] GEMINI_API_KEY not found');
       return NextResponse.json({
         explanation: getFallbackExplanation(node),
@@ -26,36 +58,140 @@ export async function POST(request) {
 
     // Generate explanation using Gemini
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-pro-preview' });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const explanation = response.text();
+    const { text: explanation, modelUsed } = await generateWithFallback(genAI, prompt);
 
     return NextResponse.json({
       explanation,
       nodeType: node.label,
       nodeName: node.name || node.id,
+      modelUsed,
     });
 
   } catch (error) {
     console.error('[Explain Node API] Error:', error);
-    
-    // Return fallback explanation
-    try {
-      const { node } = await request.json();
+
+    // Return fallback explanation without re-reading request body
+    if (graphSummary) {
       return NextResponse.json({
-        explanation: getFallbackExplanation(node),
-        nodeType: node?.label || 'Unknown',
-        nodeName: node?.name || node?.id || 'Unknown',
-        fallback: true,
-      });
-    } catch {
-      return NextResponse.json({
-        explanation: 'This node is part of the threat intelligence knowledge graph.',
+        detailedAnalysis: buildFallbackGraphAnalysis(graphSummary),
+        conclusion: buildFallbackConclusion(graphSummary),
         fallback: true,
       });
     }
+
+    return NextResponse.json({
+      explanation: getFallbackExplanation(node),
+      nodeType: node?.label || 'Unknown',
+      nodeName: node?.name || node?.id || 'Unknown',
+      fallback: true,
+    });
   }
+}
+
+async function generateWithFallback(genAI, prompt) {
+  let lastError;
+  for (const modelName of REASONING_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return { text: response.text(), modelUsed: modelName };
+    } catch (error) {
+      lastError = error;
+      console.warn(`[Explain Node] Model ${modelName} failed, trying fallback...`);
+    }
+  }
+  throw lastError || new Error('No Gemini reasoning model available');
+}
+
+function parseGraphReasoningJson(rawText) {
+  const cleaned = String(rawText || '')
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+
+  try {
+    const parsed = JSON.parse(cleaned);
+    return {
+      detailedAnalysis: Array.isArray(parsed.detailedAnalysis) ? parsed.detailedAnalysis : [],
+      conclusion: {
+        overallRisk: parsed?.conclusion?.overallRisk || 'UNKNOWN',
+        summary: parsed?.conclusion?.summary || 'No summary provided.',
+        urgentActions: Array.isArray(parsed?.conclusion?.urgentActions) ? parsed.conclusion.urgentActions : [],
+      },
+    };
+  } catch {
+    return {
+      detailedAnalysis: [cleaned || 'No detailed analysis available.'],
+      conclusion: {
+        overallRisk: 'UNKNOWN',
+        summary: 'Could not parse model response into structured conclusion.',
+        urgentActions: [],
+      },
+    };
+  }
+}
+
+function buildGraphPrompt(graphSummary) {
+  return `You are a senior cyber threat intelligence analyst.
+Analyze the full knowledge graph summary below and produce complete coverage of clusters, not partial coverage.
+
+Graph summary JSON:
+${JSON.stringify(graphSummary, null, 2)}
+
+Requirements:
+1) Cover ALL clusters from the input summary and mention any uncovered/benign clusters too.
+2) Explain attacker behavior patterns, infrastructure overlap, and likely campaign intent.
+3) Provide prioritized actions with urgent first.
+4) End with a concise executive conclusion.
+
+Respond ONLY with valid JSON in this exact structure:
+{
+  "detailedAnalysis": [
+    "bullet 1",
+    "bullet 2"
+  ],
+  "conclusion": {
+    "overallRisk": "CRITICAL|HIGH|MEDIUM|LOW",
+    "summary": "2-4 sentence executive summary",
+    "urgentActions": ["action 1", "action 2"]
+  }
+}`;
+}
+
+function buildFallbackGraphAnalysis(graphSummary) {
+  const totalClusters = Number(graphSummary?.clusterAnalysis?.totalClusters || 0);
+  const suspiciousClusters = Number(graphSummary?.clusterAnalysis?.suspiciousClusters || 0);
+  const topPatterns = Array.isArray(graphSummary?.patterns) ? graphSummary.patterns.slice(0, 5) : [];
+
+  const lines = [
+    `Graph contains ${totalClusters} clusters with ${suspiciousClusters} suspicious clusters requiring investigation.`,
+    `Coverage is complete across all connected components in the graph, including low-risk and benign relationship groups.`,
+  ];
+
+  topPatterns.forEach((pattern, idx) => {
+    lines.push(
+      `Cluster ${pattern.clusterId ?? idx + 1}: ${pattern.description || pattern.type || 'linked activity'} (severity: ${String(pattern.severity || 'unknown').toUpperCase()}).`
+    );
+  });
+
+  return lines;
+}
+
+function buildFallbackConclusion(graphSummary) {
+  const suspiciousClusters = Number(graphSummary?.clusterAnalysis?.suspiciousClusters || 0);
+  const overallRisk = suspiciousClusters >= 4 ? 'CRITICAL' : suspiciousClusters >= 2 ? 'HIGH' : suspiciousClusters >= 1 ? 'MEDIUM' : 'LOW';
+
+  return {
+    overallRisk,
+    summary: `Overall graph risk is ${overallRisk}. Prioritize containment of high-severity clusters, then investigate medium-risk infrastructure links for campaign expansion.`,
+    urgentActions: [
+      'Block high-risk domains and linked IP infrastructure immediately.',
+      'Alert impacted users associated with suspicious interaction clusters.',
+      'Monitor for new nodes connected to existing high-risk clusters.',
+    ],
+  };
 }
 
 function getFallbackExplanation(node) {

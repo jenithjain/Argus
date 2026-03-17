@@ -1,0 +1,12 @@
+{
+  "name": "chatbot-launcher",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm --prefix ./chatbot run dev",
+    "build": "npm --prefix ./chatbot run build",
+    "start": "npm --prefix ./chatbot run start",
+    "lint": "npm --prefix ./chatbot run lint",
+    "install:app": "npm --prefix ./chatbot install"
+  }
+}

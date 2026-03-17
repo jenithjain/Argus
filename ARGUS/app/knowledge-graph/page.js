@@ -58,145 +58,178 @@ export default function KnowledgeGraphPage() {
   const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
   const [threatPatterns, setThreatPatterns] = useState([]);
   const [clusterAnalysis, setClusterAnalysis] = useState(null);
+  const [graphReasoning, setGraphReasoning] = useState(null);
+  const [loadingGraphReasoning, setLoadingGraphReasoning] = useState(false);
   const graphRef = useRef();
   const graphContainerRef = useRef();
+  const lastReasoningSignatureRef = useRef('');
 
   const nodeTypes = Object.keys(COLORS);
 
   // ──── PATTERN DETECTION & CLUSTERING ALGORITHM ────────────────────────────
   const detectThreatPatterns = useCallback((data) => {
-    if (!data.nodes || data.nodes.length === 0) return;
+    const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
+    const links = Array.isArray(data?.links) ? data.links : [];
 
-    const patterns = [];
-    const clusters = {};
-    let clusterId = 0;
-
-    // 1. Identify high-risk domain clusters (lookalike/phishing campaigns)
-    const domains = data.nodes.filter(n => n.label === 'Domain');
-    const riskDomains = domains.filter(d => (d.riskScore || 0) >= 50);
-    
-    if (riskDomains.length >= 2) {
-      patterns.push({
-        type: 'phishing_campaign',
-        severity: 'critical',
-        count: riskDomains.length,
-        description: `${riskDomains.length} high-risk domains detected - possible phishing campaign`,
-        domains: riskDomains.map(d => d.name).slice(0, 3),
-        color: '#EF4444',
-        icon: '🎯',
-        recommendation: 'Block these domains and add to phishing blacklist. Monitor for related lookalike domains.'
-      });
-      riskDomains.forEach(d => {
-        clusters[d.id] = { clusterId: clusterId, type: 'phishing', severity: 'critical', domainCount: riskDomains.length };
-      });
-      clusterId++;
+    if (nodes.length === 0) {
+      const emptyResult = {
+        enhancedData: { nodes: [], links: [] },
+        patterns: [],
+        analysis: {
+          totalClusters: 0,
+          suspiciousClusters: 0,
+          clusteredNodes: 0,
+          totalNodes: 0,
+          unclusteredNodes: 0,
+          clusterDistribution: [],
+          patterns: [],
+        },
+      };
+      return emptyResult;
     }
 
-    // 2. Detect IP-to-Domain clusters (hosting multiple malicious sites)
-    const ips = data.nodes.filter(n => n.label === 'IP');
-    const ipNodeIds = new Set(ips.map(ip => ip.id));
-    
-    ips.forEach(ip => {
-      const connectedDomains = data.links
-        .filter(link => (link.source === ip.id || link.target === ip.id))
-        .map(link => link.source === ip.id ? link.target : link.source)
-        .map(id => data.nodes.find(n => n.id === id && n.label === 'Domain'))
-        .filter(Boolean);
-      
-      if (connectedDomains.length >= 3) {
-        patterns.push({
-          type: 'malicious_hosting',
-          severity: connectedDomains.some(d => (d.riskScore || 0) >= 70) ? 'critical' : 'high',
-          count: connectedDomains.length,
-          description: `IP ${ip.address} hosts ${connectedDomains.length} suspicious domains`,
-          domains: connectedDomains.map(d => d.name).slice(0, 2),
-          color: '#F97316',
-          icon: '🖥️',
-          recommendation: 'Consider blocking this IP address. Report to hosting provider for abuse.'
-        });
-        
-        clusters[ip.id] = { clusterId: clusterId, type: 'hosting', severity: 'high', domainCount: connectedDomains.length };
-        connectedDomains.forEach(d => {
-          if (!clusters[d.id]) clusters[d.id] = { clusterId: clusterId, type: 'hosting', severity: 'high', domainCount: connectedDomains.length };
-        });
-        clusterId++;
-      }
+    const toId = (raw) => String(typeof raw === 'object' && raw !== null ? raw.id : raw);
+    const nodeMap = new Map(nodes.map((node) => [String(node.id), node]));
+    const adjacency = new Map(nodes.map((node) => [String(node.id), new Set()]));
+
+    links.forEach((link) => {
+      const sourceId = toId(link.source);
+      const targetId = toId(link.target);
+      if (!adjacency.has(sourceId) || !adjacency.has(targetId)) return;
+      adjacency.get(sourceId).add(targetId);
+      adjacency.get(targetId).add(sourceId);
     });
 
-    // 3. Detect interaction user clusters (attack targets)
-    const users = data.nodes.filter(n => n.label === 'User');
-    const userNodeIds = new Set(users.map(u => u.id));
-    
-    users.forEach(user => {
-      const interactedDomains = data.links
-        .filter(link => (link.source === user.id || link.target === user.id))
-        .map(link => link.source === user.id ? link.target : link.source)
-        .map(id => data.nodes.find(n => n.id === id));
-      
-      const riskInteractions = interactedDomains.filter(d => d && (d.riskScore || 0) >= 50);
-      if (riskInteractions.length >= 2) {
-        patterns.push({
-          type: 'targeted_user',
-          severity: 'high',
-          count: riskInteractions.length,
-          description: `User visited ${riskInteractions.length} high-risk domains - possible targeted attack`,
-          domains: riskInteractions.map(d => d.name).slice(0, 2),
-          color: '#A855F7',
-          icon: '🎯👤',
-          recommendation: 'Alert user about potential compromise. Recommend password reset and security audit.'
-        });
-        
-        clusters[user.id] = { clusterId: clusterId, type: 'targeted', severity: 'high', riskCount: riskInteractions.length };
-        clusterId++;
-      }
-    });
+    const visited = new Set();
+    const components = [];
 
-    // 4. Detect registrar-based fraud networks
-    const registrars = data.nodes.filter(n => n.label === 'Registrar');
-    registrars.forEach(registrar => {
-      const registrarDomains = data.links
-        .filter(link => (link.source === registrar.id || link.target === registrar.id))
-        .map(link => link.source === registrar.id ? link.target : link.source)
-        .map(id => data.nodes.find(n => n.id === id && n.label === 'Domain'))
-        .filter(Boolean);
-      
-      const fraudDomains = registrarDomains.filter(d => (d.riskScore || 0) >= 60);
-      if (fraudDomains.length >= 2) {
-        patterns.push({
-          type: 'registration_abuse',
-          severity: 'medium',
-          count: fraudDomains.length,
-          description: `Registrar "${registrar.name}" has ${fraudDomains.length} fraudulent domains`,
-          domains: fraudDomains.map(d => d.name).slice(0, 2),
-          color: '#8B5CF6',
-          icon: '📋',
-          recommendation: 'Report this registrar for abuse. Monitor for additional fraudulent registrations.'
-        });
-        
-        clusters[registrar.id] = { clusterId: clusterId, type: 'registration', severity: 'medium', fraudCount: fraudDomains.length };
-        clusterId++;
-      }
-    });
+    for (const node of nodes) {
+      const startId = String(node.id);
+      if (visited.has(startId)) continue;
 
-    // 5. Add cluster metadata to nodes
-    const enhancedNodes = data.nodes.map(node => ({
+      const stack = [startId];
+      const component = [];
+      visited.add(startId);
+
+      while (stack.length > 0) {
+        const current = stack.pop();
+        component.push(current);
+        for (const next of adjacency.get(current) || []) {
+          if (!visited.has(next)) {
+            visited.add(next);
+            stack.push(next);
+          }
+        }
+      }
+
+      if (component.length >= 2) components.push(component);
+    }
+
+    const bySeverity = { critical: 3, high: 2, medium: 1, low: 0 };
+    const clusterMetaByNode = {};
+    const patterns = components.map((componentIds, index) => {
+      const componentSet = new Set(componentIds);
+      const componentNodes = componentIds.map((id) => nodeMap.get(id)).filter(Boolean);
+      const componentLinks = links.filter((link) => componentSet.has(toId(link.source)) && componentSet.has(toId(link.target)));
+      const labels = componentNodes.reduce((acc, node) => {
+        acc[node.label] = (acc[node.label] || 0) + 1;
+        return acc;
+      }, {});
+
+      const domainNodes = componentNodes.filter((n) => n.label === 'Domain');
+      const riskyDomains = domainNodes.filter((n) => Number(n.riskScore || 0) >= 50);
+      const maxRisk = Math.max(0, ...componentNodes.map((n) => Number(n.riskScore || 0)));
+      const avgRisk = componentNodes.length
+        ? Math.round(componentNodes.reduce((sum, n) => sum + Number(n.riskScore || 0), 0) / componentNodes.length)
+        : 0;
+
+      const hasThreatNode = Boolean(labels.Threat);
+      let type = 'linked_activity_cluster';
+      if (hasThreatNode || riskyDomains.length >= 2) {
+        type = 'phishing_campaign';
+      } else if ((labels.IP || 0) > 0 && (labels.Domain || 0) >= 2) {
+        type = 'malicious_hosting';
+      } else if ((labels.User || 0) > 0 && riskyDomains.length > 0) {
+        type = 'targeted_user';
+      } else if ((labels.Registrar || 0) > 0 && riskyDomains.length > 0) {
+        type = 'registration_abuse';
+      }
+
+      const severity = hasThreatNode || maxRisk >= 80
+        ? 'critical'
+        : maxRisk >= 60
+          ? 'high'
+          : maxRisk >= 35
+            ? 'medium'
+            : 'low';
+
+      const colorMap = {
+        phishing_campaign: '#EF4444',
+        malicious_hosting: '#F97316',
+        targeted_user: '#A855F7',
+        registration_abuse: '#8B5CF6',
+        linked_activity_cluster: '#64748B',
+      };
+      const iconMap = {
+        phishing_campaign: '🎯',
+        malicious_hosting: '🖥️',
+        targeted_user: '🎯👤',
+        registration_abuse: '📋',
+        linked_activity_cluster: '🧩',
+      };
+      const recommendationMap = {
+        phishing_campaign: 'Block related domains and linked infrastructure, then enforce user credential reset for exposed targets.',
+        malicious_hosting: 'Block malicious IP/domain pairs and escalate abuse reports to hosting providers.',
+        targeted_user: 'Notify affected users and initiate endpoint and account compromise checks.',
+        registration_abuse: 'Escalate registrar abuse and watch for newly registered lookalike domains.',
+        linked_activity_cluster: 'Continue monitoring this cluster for risk escalation and infrastructure reuse.',
+      };
+
+      const clusterId = index + 1;
+      componentIds.forEach((id) => {
+        clusterMetaByNode[id] = { clusterId, type, severity };
+      });
+
+      return {
+        clusterId,
+        type,
+        severity,
+        count: componentNodes.length,
+        nodeCount: componentNodes.length,
+        linkCount: componentLinks.length,
+        avgRisk,
+        maxRisk,
+        description: `Cluster ${clusterId}: ${componentNodes.length} nodes, ${componentLinks.length} links, max risk ${maxRisk}.`,
+        domains: domainNodes.map((d) => d.name).filter(Boolean).slice(0, 5),
+        color: colorMap[type],
+        icon: iconMap[type],
+        recommendation: recommendationMap[type],
+      };
+    }).sort((a, b) => (bySeverity[b.severity] - bySeverity[a.severity]) || (b.maxRisk - a.maxRisk));
+
+    const enhancedNodes = nodes.map((node) => ({
       ...node,
-      clusterId: clusters[node.id]?.clusterId ?? -1,
-      clusterType: clusters[node.id]?.type ?? null,
-      clusterSeverity: clusters[node.id]?.severity ?? null,
+      clusterId: clusterMetaByNode[String(node.id)]?.clusterId ?? -1,
+      clusterType: clusterMetaByNode[String(node.id)]?.type ?? null,
+      clusterSeverity: clusterMetaByNode[String(node.id)]?.severity ?? null,
     }));
 
-    setThreatPatterns(patterns);
-    setClusterAnalysis({
-      totalClusters: clusterId,
+    const clusteredNodes = Object.keys(clusterMetaByNode).length;
+    const analysis = {
+      totalClusters: patterns.length,
+      suspiciousClusters: patterns.filter((p) => p.severity === 'critical' || p.severity === 'high').length,
+      clusteredNodes,
+      totalNodes: nodes.length,
+      unclusteredNodes: Math.max(0, nodes.length - clusteredNodes),
+      clusterDistribution: patterns.map((p) => ({ type: p.type, count: p.nodeCount })),
       patterns,
-      clusteredNodes: Object.keys(clusters).length,
-      totalNodes: data.nodes.length,
-      clusterDistribution: patterns.map(p => ({ type: p.type, count: p.count }))
-    });
+    };
 
-    // Return enhanced data with cluster info
-    return { ...data, nodes: enhancedNodes };
+    return {
+      enhancedData: { ...data, nodes: enhancedNodes },
+      patterns,
+      analysis,
+    };
   }, []);
 
   // Track theme changes
@@ -238,9 +271,15 @@ export default function KnowledgeGraphPage() {
     try {
       const response = await fetch('/api/graph-data');
       const data = await response.json();
-      
-      // Apply pattern detection
-      const enhancedData = detectThreatPatterns(data);
+
+      // Apply full-coverage cluster analysis
+      const detection = detectThreatPatterns(data);
+      const enhancedData = detection?.enhancedData || { nodes: [], links: [] };
+      const patterns = detection?.patterns || [];
+      const analysis = detection?.analysis || null;
+
+      setThreatPatterns(patterns);
+      setClusterAnalysis(analysis);
       setGraphData(enhancedData);
       
       // Apply filters
@@ -249,8 +288,11 @@ export default function KnowledgeGraphPage() {
       } else {
         filterGraphData(enhancedData, selectedFilters);
       }
+
+      return { enhancedData, patterns, analysis };
     } catch (error) {
       console.error('Failed to fetch graph data:', error);
+      return null;
     }
   }, [selectedFilters, detectThreatPatterns]);
 
@@ -287,9 +329,55 @@ export default function KnowledgeGraphPage() {
     try {
       const response = await fetch('/api/campaign-clusters');
       const data = await response.json();
-      setCampaigns(data.campaigns || []);
+      const list = data.campaigns || [];
+      setCampaigns(list);
+      return list;
     } catch (error) {
       console.error('Failed to fetch campaigns:', error);
+      return [];
+    }
+  }, []);
+
+  const getGraphReasoning = useCallback(async (graphSummary) => {
+    if (!graphSummary) return;
+
+    const signature = JSON.stringify({
+      nodeCount: graphSummary?.graphStats?.nodeCount || 0,
+      linkCount: graphSummary?.graphStats?.linkCount || 0,
+      totalClusters: graphSummary?.clusterAnalysis?.totalClusters || 0,
+      suspiciousClusters: graphSummary?.clusterAnalysis?.suspiciousClusters || 0,
+      campaignCount: Array.isArray(graphSummary?.campaigns) ? graphSummary.campaigns.length : 0,
+    });
+
+    if (lastReasoningSignatureRef.current === signature) return;
+    lastReasoningSignatureRef.current = signature;
+
+    setLoadingGraphReasoning(true);
+    try {
+      const response = await fetch('/api/explain-node', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ graphSummary }),
+      });
+      const data = await response.json();
+      setGraphReasoning({
+        detailedAnalysis: Array.isArray(data.detailedAnalysis) ? data.detailedAnalysis : [],
+        conclusion: data.conclusion || null,
+        modelUsed: data.modelUsed || null,
+      });
+    } catch (error) {
+      console.error('Failed to get graph reasoning:', error);
+      setGraphReasoning({
+        detailedAnalysis: ['Unable to generate full AI reasoning at this time.'],
+        conclusion: {
+          overallRisk: 'UNKNOWN',
+          summary: 'Graph analysis service is temporarily unavailable.',
+          urgentActions: [],
+        },
+        modelUsed: null,
+      });
+    } finally {
+      setLoadingGraphReasoning(false);
     }
   }, []);
 
@@ -319,27 +407,42 @@ export default function KnowledgeGraphPage() {
       await fetchCampaigns();
       setSelectedNode(null);
       setAiExplanation(null);
+      setGraphReasoning(null);
+      lastReasoningSignatureRef.current = '';
     } catch (error) {
       console.error('Failed to reset graph:', error);
     }
   };
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchGraphData(), fetchCampaigns()]);
+    const [graphResult, campaignList] = await Promise.all([fetchGraphData(), fetchCampaigns()]);
+
+    if (graphResult?.analysis) {
+      await getGraphReasoning({
+        graphStats: {
+          nodeCount: graphResult.enhancedData?.nodes?.length || 0,
+          linkCount: graphResult.enhancedData?.links?.length || 0,
+        },
+        clusterAnalysis: graphResult.analysis,
+        patterns: graphResult.patterns,
+        campaigns: campaignList,
+      });
+    }
+
     setLoading(false);
-  };
+  }, [fetchGraphData, fetchCampaigns, getGraphReasoning]);
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [refreshData]);
 
   useEffect(() => {
     if (autoRefresh) {
       const interval = setInterval(refreshData, 5000);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh, fetchGraphData, fetchCampaigns]);
+  }, [autoRefresh, refreshData]);
 
   // Configure d3 forces for better node spacing
   useEffect(() => {
@@ -1002,6 +1105,10 @@ export default function KnowledgeGraphPage() {
                             <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#8B5CF6'}}/>
                             <span className="text-muted-foreground">Violet glow = Registration Abuse</span>
                           </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#64748B'}}/>
+                            <span className="text-muted-foreground">Slate glow = Linked Activity Cluster</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1017,6 +1124,77 @@ export default function KnowledgeGraphPage() {
                   )}
                 </div>
               </Card>
+
+              <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-600/5 border-cyan-500/30 shadow-lg">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-cyan-500" />
+                      Detailed Analysis
+                    </h3>
+                    {graphReasoning?.modelUsed && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {graphReasoning.modelUsed}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {loadingGraphReasoning ? (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Generating complete cluster analysis...</span>
+                    </div>
+                  ) : graphReasoning ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {(graphReasoning.detailedAnalysis || []).map((item, index) => (
+                          <p key={index} className="text-xs text-foreground leading-relaxed bg-card/50 rounded-md p-2 border border-border/50">
+                            {item}
+                          </p>
+                        ))}
+                      </div>
+
+                      {graphReasoning.conclusion && (
+                        <div className="pt-3 border-t border-border/60 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-foreground">Conclusion</p>
+                            <Badge
+                              className="text-[10px]"
+                              variant={
+                                graphReasoning.conclusion.overallRisk === 'CRITICAL'
+                                  ? 'destructive'
+                                  : graphReasoning.conclusion.overallRisk === 'HIGH'
+                                    ? 'default'
+                                    : 'secondary'
+                              }
+                            >
+                              {graphReasoning.conclusion.overallRisk || 'UNKNOWN'}
+                            </Badge>
+                          </div>
+
+                          <p className="text-xs text-foreground leading-relaxed bg-card/50 rounded-md p-2 border border-border/50">
+                            {graphReasoning.conclusion.summary}
+                          </p>
+
+                          {Array.isArray(graphReasoning.conclusion.urgentActions) && graphReasoning.conclusion.urgentActions.length > 0 && (
+                            <div className="bg-red-500/5 rounded-md p-2 border border-red-500/20">
+                              <p className="text-[11px] font-semibold text-red-500 mb-1">Urgent Actions</p>
+                              <div className="space-y-1">
+                                {graphReasoning.conclusion.urgentActions.map((action, idx) => (
+                                  <p key={idx} className="text-xs text-foreground leading-snug">- {action}</p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">Detailed graph reasoning will appear after refresh.</p>
+                  )}
+                </div>
+              </Card>
+
               <Card className="bg-card border-border">
                 <div className="p-4">
                   <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
