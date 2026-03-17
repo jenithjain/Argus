@@ -10,6 +10,7 @@ const CredentialsProvider = _CredentialsProvider.default ?? _CredentialsProvider
 const GoogleProvider = _GoogleProvider.default ?? _GoogleProvider;
 
 export const authOptions = {
+  trustHost: true,
   providers: [
     // Email/Password Authentication
     CredentialsProvider({
@@ -189,6 +190,8 @@ export const authOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+
+  useSecureCookies: process.env.NODE_ENV === 'production',
 
   secret: process.env.NEXTAUTH_SECRET
 };
