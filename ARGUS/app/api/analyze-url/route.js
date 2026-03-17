@@ -266,6 +266,8 @@ export async function POST(request) {
       return NextResponse.json({ verdict: 'CLEAR', score: 0, reason: 'Non-HTTP URL', signals: [] }, { headers: corsHeaders });
     }
 
+    const hostname = parsedUrl.hostname.toLowerCase();
+
     // Enhanced whitelist of safe domains - no URL protection needed
     const ALWAYS_SAFE = [
       // Browser internal pages
