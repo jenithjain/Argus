@@ -266,25 +266,113 @@ export async function POST(request) {
       return NextResponse.json({ verdict: 'CLEAR', score: 0, reason: 'Non-HTTP URL', signals: [] }, { headers: corsHeaders });
     }
 
-    // Skip obviously safe internal/extension URLs
-    const hostname = parsedUrl.hostname.toLowerCase();
+    // Enhanced whitelist of safe domains - no URL protection needed
     const ALWAYS_SAFE = [
-      'google.com', 'googleapis.com', 'gstatic.com',
-      'microsoft.com', 'windows.com', 'office.com', 'azure.com',
-      'github.com', 'githubusercontent.com',
-      'cloudflare.com', 'amazon.com', 'amazonaws.com',
-      'apple.com', 'icloud.com',
-      'mozilla.org', 'firefox.com',
+      // Browser internal pages
       'localhost', '127.0.0.1',
+      
+      // Major tech companies
+      'google.com', 'googleapis.com', 'gstatic.com', 'googleusercontent.com',
+      'microsoft.com', 'windows.com', 'office.com', 'azure.com', 'live.com', 'outlook.com',
+      'github.com', 'githubusercontent.com', 'gitlab.com',
+      'amazon.com', 'amazonaws.com', 'aws.amazon.com',
+      'apple.com', 'icloud.com', 'apple-cloudkit.com',
+      'mozilla.org', 'firefox.com',
+      'cloudflare.com', 'cloudflareinsights.com',
+      
+      // Social media platforms
+      'facebook.com', 'fb.com', 'instagram.com', 'whatsapp.com',
+      'twitter.com', 'x.com',
+      'linkedin.com',
+      'reddit.com', 'redd.it',
+      'youtube.com', 'youtu.be',
+      'tiktok.com',
+      'snapchat.com',
+      'pinterest.com',
+      'discord.com', 'discordapp.com',
+      'telegram.org',
+      
+      // Development & tools
+      'stackoverflow.com', 'stackexchange.com',
+      'npmjs.com', 'npmjs.org',
+      'pypi.org', 'python.org',
+      'docker.com', 'docker.io',
+      'vercel.com', 'vercel.app',
+      'netlify.com', 'netlify.app',
+      'heroku.com', 'herokuapp.com',
+      'digitalocean.com',
+      
+      // Content delivery & media
+      'cdn.jsdelivr.net', 'unpkg.com',
+      'vimeo.com',
+      'spotify.com', 'scdn.co',
+      'twitch.tv',
+      
+      // E-commerce & payment
+      'paypal.com', 'paypalobjects.com',
+      'stripe.com',
+      'shopify.com',
+      'ebay.com',
+      'etsy.com',
+      
+      // News & media
+      'nytimes.com',
+      'bbc.com', 'bbc.co.uk',
+      'cnn.com',
+      'theguardian.com',
+      'reuters.com',
+      'bloomberg.com',
+      
+      // Education
+      'wikipedia.org', 'wikimedia.org',
+      'coursera.org',
+      'udemy.com',
+      'khanacademy.org',
+      'edx.org',
+      
+      // Productivity
+      'notion.so',
+      'slack.com',
+      'zoom.us',
+      'dropbox.com',
+      'box.com',
+      'trello.com',
+      'asana.com',
+      
+      // Browser extensions
+      'chrome.google.com',
+      'chromewebstore.google.com',
+      'addons.mozilla.org',
+      'microsoftedge.microsoft.com',
     ];
+    
+    // Check if URL matches whitelist
     if (ALWAYS_SAFE.some(safe => hostname === safe || hostname.endsWith('.' + safe))) {
       const explainable = buildExplainability(
         url,
         'CLEAR',
         0,
-        'Trusted domain on allowlist',
-        ['Allowlist match on trusted domain'],
-        'allowlist'
+        'Trusted domain on security whitelist',
+        ['Verified safe domain - no protection needed'],
+        'whitelist'
+      );
+      return NextResponse.json({ ...explainable, url }, { headers: corsHeaders });
+    }
+    
+    // Special handling for browser extension pages
+    if (parsedUrl.protocol === 'chrome-extension:' || 
+        parsedUrl.protocol === 'edge-extension:' ||
+        parsedUrl.protocol === 'moz-extension:' ||
+        url.startsWith('edge://') ||
+        url.startsWith('chrome://') ||
+        url.startsWith('about:')) {
+      const explainable = buildExplainability(
+        url,
+        'CLEAR',
+        0,
+        'Browser internal page or extension',
+        ['Browser system page - safe'],
+        'browser-internal'
       );
       return NextResponse.json({ ...explainable, url }, { headers: corsHeaders });
     }

@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import ThemeToggle from '@/components/ThemeToggle';
 import { 
   Network, 
   RefreshCw, 
@@ -22,7 +21,8 @@ import {
   X,
   Loader2,
   Filter,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
@@ -52,7 +52,8 @@ export default function KnowledgeGraphPage() {
   const [loadingAI, setLoadingAI] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
   const graphRef = useRef();
@@ -93,7 +94,7 @@ export default function KnowledgeGraphPage() {
     resizeObserver.observe(container);
 
     return () => resizeObserver.disconnect();
-  }, [sidebarOpen]);
+  }, []);
 
   const fetchGraphData = useCallback(async () => {
     try {
@@ -225,7 +226,7 @@ export default function KnowledgeGraphPage() {
     // Clone the node to avoid mutation issues with force-graph internals
     const nodeData = { ...node };
     setSelectedNode(nodeData);
-    setSidebarOpen(true);
+    setRightSidebarOpen(true);
     setAiExplanation(null);
     getAIExplanation(nodeData);
     
@@ -256,47 +257,44 @@ export default function KnowledgeGraphPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="h-screen flex flex-col pt-14">
-        {/* Header */}
-        <div className="flex-none px-6 py-4 border-b border-border bg-card/80 backdrop-blur-md z-30">
-          <div className="max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <Network className="w-7 h-7 text-emerald-500" />
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">
-                    Threat Intelligence Knowledge Graph
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    Real-time visualization of browsing activity and cyber threats
-                  </p>
-                </div>
+      <div className="h-screen flex flex-col">
+        {/* Top Navigation Bar */}
+        <div className="flex-none px-6 py-3 border-b border-border bg-card/80 backdrop-blur-md z-30">
+          <div className="flex items-center justify-between gap-6">
+            {/* Left Section - Logo + Title */}
+            <div className="flex items-center gap-3">
+              <Network className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+              <div>
+                <h1 className="text-base font-bold text-foreground">
+                  Threat Intelligence Knowledge Graph
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  Real-time visualization of browsing activity and cyber threats
+                </p>
               </div>
             </div>
             
-            <div className="flex flex-wrap items-center gap-2">
-              <ThemeToggle />
+            {/* Center Section - Graph Controls */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Tabs value={viewMode} onValueChange={setViewMode}>
+                <TabsList className="bg-card/95 backdrop-blur-md border border-border h-9">
+                  <TabsTrigger value="2d" className="text-xs px-3">2D</TabsTrigger>
+                  <TabsTrigger value="3d" className="text-xs px-3">3D</TabsTrigger>
+                </TabsList>
+              </Tabs>
               
-              <Button
-                onClick={() => setSidebarOpen(prev => !prev)}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                {sidebarOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                {sidebarOpen ? 'Hide' : 'Show'} Sidebar
-              </Button>
+              <div className="h-6 w-px bg-border" />
               
               <Button
                 onClick={() => setShowFilters(!showFilters)}
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-1.5 h-9"
               >
                 <Filter className="w-4 h-4" />
-                Filters
+                <span className="text-xs">Filters</span>
                 {selectedFilters.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-xs">
                     {selectedFilters.length}
                   </Badge>
                 )}
@@ -306,10 +304,10 @@ export default function KnowledgeGraphPage() {
                 onClick={() => setAutoRefresh(!autoRefresh)}
                 variant={autoRefresh ? 'default' : 'outline'}
                 size="sm"
-                className="gap-2"
+                className="gap-1.5 h-9"
               >
                 {autoRefresh ? <Activity className="w-4 h-4" /> : <Activity className="w-4 h-4 opacity-50" />}
-                {autoRefresh ? 'Live' : 'Paused'}
+                <span className="text-xs">{autoRefresh ? 'Live' : 'Pause'}</span>
               </Button>
               
               <Button
@@ -317,27 +315,40 @@ export default function KnowledgeGraphPage() {
                 disabled={loading}
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-1.5 h-9"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
+                <span className="text-xs">Refresh</span>
               </Button>
               
               <Button
                 onClick={resetGraph}
                 variant="destructive"
                 size="sm"
-                className="gap-2"
+                className="gap-1.5 h-9"
               >
                 <Trash2 className="w-4 h-4" />
-                Reset
+                <span className="text-xs">Reset</span>
+              </Button>
+            </div>
+
+            {/* Right Section - UI Controls */}
+            <div className="flex items-center gap-2 flex-shrink-0 mr-20 md:mr-24">
+              <Button
+                onClick={() => setRightSidebarOpen(prev => !prev)}
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9"
+              >
+                {rightSidebarOpen ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                <span className="text-xs">Sidebar</span>
               </Button>
             </div>
           </div>
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="max-w-[1800px] mx-auto mt-4 p-4 bg-card/80 backdrop-blur-md rounded-lg border border-border shadow-lg">
+            <div className="mt-4 p-4 bg-card/80 backdrop-blur-md rounded-xl border border-border shadow-lg">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground">Filter by Node Type</h3>
                 {selectedFilters.length > 0 && (
@@ -369,54 +380,108 @@ export default function KnowledgeGraphPage() {
 
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden relative">
-          {/* Graph Visualization - always takes full width, sidebar overlays */}
+          {/* Left Sidebar - Statistics */}
+          <div 
+            className={`flex-shrink-0 border-r border-border bg-card/98 backdrop-blur-xl overflow-y-auto ${
+              leftSidebarOpen ? 'w-60' : 'w-0'
+            }`}
+          >
+            {leftSidebarOpen && (
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold text-foreground">Graph Statistics</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setLeftSidebarOpen(false)}
+                    className="h-7 w-7 p-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 shadow-lg">
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-500/10">
+                        <Globe className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Nodes</p>
+                        <p className="text-2xl font-bold text-foreground">
+                          {filteredGraphData.nodes?.length || 0}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/20 shadow-lg">
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-500/10">
+                        <Activity className="w-5 h-5 text-purple-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Links</p>
+                        <p className="text-2xl font-bold text-foreground">
+                          {filteredGraphData.links?.length || 0}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20 shadow-lg">
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-red-500/10">
+                        <AlertTriangle className="w-5 h-5 text-red-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Campaigns</p>
+                        <p className="text-2xl font-bold text-foreground">
+                          {campaigns.length}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Node Types Legend */}
+                <Card className="bg-card border-border mt-4">
+                  <div className="p-4">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Node Types</h3>
+                    <div className="space-y-2">
+                      {Object.entries(COLORS).map(([label, color]) => (
+                        <div key={label} className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="text-xs text-foreground">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+
+          {/* Left Sidebar Toggle (when closed) */}
+          {!leftSidebarOpen && (
+            <button
+              onClick={() => setLeftSidebarOpen(true)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur-md border border-border border-l-0 rounded-r-lg p-2 shadow-lg hover:bg-accent transition-colors"
+              title="Open statistics panel"
+            >
+              <ChevronRight className="w-4 h-4 text-foreground" />
+            </button>
+          )}
+
+          {/* Graph Visualization - Center Canvas */}
           <div className="flex-1 relative" ref={graphContainerRef}>
-            {/* Stats Overlay */}
-            <div className="absolute top-4 left-4 z-10 flex gap-3">
-              <Card className="bg-card/95 border-border backdrop-blur-md p-3 shadow-lg">
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-blue-500" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Nodes</p>
-                    <p className="text-lg font-bold text-foreground">
-                      {filteredGraphData.nodes?.length || 0}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="bg-card/95 border-border backdrop-blur-md p-3 shadow-lg">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-purple-500" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Links</p>
-                    <p className="text-lg font-bold text-foreground">
-                      {filteredGraphData.links?.length || 0}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="bg-card/95 border-border backdrop-blur-md p-3 shadow-lg">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Campaigns</p>
-                    <p className="text-lg font-bold text-foreground">{campaigns.length}</p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="absolute top-4 right-4 z-10" style={{ right: sidebarOpen ? '400px' : '16px' }}>
-              <Tabs value={viewMode} onValueChange={setViewMode}>
-                <TabsList className="bg-card/95 backdrop-blur-md border border-border shadow-lg">
-                  <TabsTrigger value="2d">2D View</TabsTrigger>
-                  <TabsTrigger value="3d">3D View</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
 
             {/* Graph */}
             <div className="w-full h-full">
@@ -501,30 +566,28 @@ export default function KnowledgeGraphPage() {
             </div>
           </div>
 
-          {/* Right Sidebar - Overlay positioned */}
+          {/* Right Sidebar - Details Panel */}
           <div 
-            className={`absolute top-0 right-0 h-full z-20 border-l border-border bg-card/98 backdrop-blur-xl overflow-y-auto shadow-2xl transition-transform duration-300 ease-in-out ${
-              sidebarOpen 
-                ? 'translate-x-0' 
-                : 'translate-x-full'
+            className={`absolute top-0 right-0 z-30 h-full w-96 border-l border-border bg-card overflow-y-auto shadow-2xl ${
+              rightSidebarOpen ? 'block' : 'hidden'
             }`}
-            style={{ width: '384px' }}
           >
-            {/* Close button inside sidebar */}
-            <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-md border-b border-border p-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Network className="w-4 h-4 text-emerald-500" />
-                Details Panel
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarOpen(false)}
-                className="h-7 w-7 p-0"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+            <>
+                {/* Header inside sidebar */}
+                <div className="sticky top-0 z-10 bg-card border-b border-border p-3 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Network className="w-4 h-4 text-emerald-500" />
+                    Details Panel
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRightSidebarOpen(false)}
+                    className="h-7 w-7 p-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
 
             <div className="p-4 space-y-4">
               {/* Selected Node Details */}
@@ -592,18 +655,18 @@ export default function KnowledgeGraphPage() {
 
                     {/* All Node Properties */}
                     <div className="mt-3 pt-3 border-t border-border">
-                      <p className="text-sm font-semibold text-foreground mb-2">All Properties</p>
+                      <p className="text-sm font-semibold text-foreground mb-2">Properties</p>
                       <div className="space-y-1.5 max-h-60 overflow-y-auto">
                         {Object.entries(selectedNode)
                           .filter(([key]) => !HIDDEN_PROPS.has(key))
                           .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
                           .map(([key, value]) => (
-                            <div key={key} className="flex justify-between gap-2 text-xs py-0.5">
-                              <span className="text-muted-foreground capitalize flex-shrink-0">
+                            <div key={key} className="grid grid-cols-2 gap-2 text-xs py-0.5">
+                              <span className="text-muted-foreground capitalize truncate">
                                 {key.replace(/([A-Z])/g, ' $1').trim()}
                               </span>
                               <span 
-                                className="text-foreground font-mono text-right truncate max-w-[200px]" 
+                                className="text-foreground font-mono text-right truncate" 
                                 title={String(value)}
                               >
                                 {typeof value === 'object' ? JSON.stringify(value) : String(value)}
@@ -680,31 +743,14 @@ export default function KnowledgeGraphPage() {
                   )}
                 </div>
               </Card>
-
-              {/* Legend */}
-              <Card className="bg-card border-border">
-                <div className="p-4">
-                  <h3 className="text-sm font-semibold text-foreground mb-3">Node Types</h3>
-                  <div className="space-y-2">
-                    {Object.entries(COLORS).map(([label, color]) => (
-                      <div key={label} className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: color }}
-                        />
-                        <span className="text-xs text-foreground">{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </Card>
             </div>
+            </>
           </div>
 
-          {/* Sidebar toggle tab (visible when sidebar is closed) */}
-          {!sidebarOpen && (
+          {/* Right Sidebar Toggle (when closed) */}
+          {!rightSidebarOpen && (
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setRightSidebarOpen(true)}
               className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur-md border border-border border-r-0 rounded-l-lg p-2 shadow-lg hover:bg-accent transition-colors"
               title="Open details panel"
             >

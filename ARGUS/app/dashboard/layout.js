@@ -41,8 +41,6 @@ export default function DashboardLayout({ children }) {
             items={[
               { label: "Home", link: "/", ariaLabel: "Go to Home" },
               { label: "Dashboard", link: "/dashboard", ariaLabel: "View Dashboard" },
-              { label: "Analytics", link: "/analytics", ariaLabel: "Security Analytics" },
-              { label: "Threat Analysis", link: "/campaign", ariaLabel: "AI Threat Analysis" },
               { label: "Knowledge Graph", link: "/knowledge-graph", ariaLabel: "Threat Intelligence Graph" },
               { label: "Assistant", link: "/assistant", ariaLabel: "AI Assistant" },
               { label: "Profile", link: "/profile", ariaLabel: "View Profile" },

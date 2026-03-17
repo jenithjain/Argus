@@ -139,19 +139,88 @@ function needsScanning(urlStr) {
     const u = new URL(urlStr);
     const hostname = u.hostname.toLowerCase();
     
-    // Skip localhost and common safe domains
-    const SKIP_DOMAINS = [
+    // Comprehensive whitelist - skip URL protection for these safe domains
+    const WHITELIST = [
+      // Browser internal pages
       'localhost', '127.0.0.1',
-      'google.com', 'googleapis.com', 'gstatic.com', 'youtube.com',
-      'microsoft.com', 'windows.com', 'office.com', 'azure.com', 'live.com',
-      'github.com', 'githubusercontent.com',
-      'cloudflare.com', 'amazon.com', 'amazonaws.com',
-      'apple.com', 'icloud.com',
+      
+      // Major tech companies
+      'google.com', 'googleapis.com', 'gstatic.com', 'googleusercontent.com', 'youtube.com', 'youtu.be',
+      'microsoft.com', 'windows.com', 'office.com', 'azure.com', 'live.com', 'outlook.com',
+      'github.com', 'githubusercontent.com', 'gitlab.com',
+      'amazon.com', 'amazonaws.com', 'aws.amazon.com',
+      'apple.com', 'icloud.com', 'apple-cloudkit.com',
       'mozilla.org', 'firefox.com',
+      'cloudflare.com', 'cloudflareinsights.com',
+      
+      // Social media platforms
+      'facebook.com', 'fb.com', 'instagram.com', 'whatsapp.com',
+      'twitter.com', 'x.com',
+      'linkedin.com',
+      'reddit.com', 'redd.it',
+      'tiktok.com',
+      'snapchat.com',
+      'pinterest.com',
+      'discord.com', 'discordapp.com',
+      'telegram.org',
+      
+      // Development & tools
+      'stackoverflow.com', 'stackexchange.com',
+      'npmjs.com', 'npmjs.org',
+      'pypi.org', 'python.org',
+      'docker.com', 'docker.io',
+      'vercel.com', 'vercel.app',
+      'netlify.com', 'netlify.app',
+      'heroku.com', 'herokuapp.com',
+      'digitalocean.com',
+      
+      // Content delivery & media
+      'cdn.jsdelivr.net', 'unpkg.com',
+      'vimeo.com',
+      'spotify.com', 'scdn.co',
+      'twitch.tv',
+      
+      // E-commerce & payment
+      'paypal.com', 'paypalobjects.com',
+      'stripe.com',
+      'shopify.com',
+      'ebay.com',
+      'etsy.com',
+      
+      // News & media
+      'nytimes.com',
+      'bbc.com', 'bbc.co.uk',
+      'cnn.com',
+      'theguardian.com',
+      'reuters.com',
+      'bloomberg.com',
+      
+      // Education
       'wikipedia.org', 'wikimedia.org',
+      'coursera.org',
+      'udemy.com',
+      'khanacademy.org',
+      'edx.org',
+      
+      // Productivity
+      'notion.so',
+      'slack.com',
+      'zoom.us',
+      'dropbox.com',
+      'box.com',
+      'trello.com',
+      'asana.com',
+      
+      // Browser extensions
+      'chrome.google.com',
+      'chromewebstore.google.com',
+      'addons.mozilla.org',
+      'microsoftedge.microsoft.com',
     ];
     
-    if (SKIP_DOMAINS.some(safe => hostname === safe || hostname.endsWith('.' + safe))) {
+    // Check if hostname matches whitelist
+    if (WHITELIST.some(safe => hostname === safe || hostname.endsWith('.' + safe))) {
+      console.log('[ARGUS URL] Whitelisted domain - skipping scan:', hostname);
       return false;
     }
     
@@ -229,9 +298,15 @@ async function analyzeUrlWithGemini(urlStr) {
 }
 
 async function scanUrl(urlStr) {
-  // Skip chrome:// and extension pages
-  if (!urlStr || urlStr.startsWith('chrome://') || urlStr.startsWith('chrome-extension://') ||
-      urlStr.startsWith('about:') || urlStr.startsWith('data:')) {
+  // Skip chrome:// and extension pages and browser internal URLs
+  if (!urlStr || 
+      urlStr.startsWith('chrome://') || 
+      urlStr.startsWith('chrome-extension://') ||
+      urlStr.startsWith('edge://') ||
+      urlStr.startsWith('edge-extension://') ||
+      urlStr.startsWith('about:') || 
+      urlStr.startsWith('data:')) {
+    console.log('[ARGUS URL] Browser internal page - skipping scan');
     return null;
   }
 
