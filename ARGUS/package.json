@@ -1,6 +1,6 @@
 {
   "name": "ARGUS",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "ARGUS - Adaptive Risk & Generative Understanding System. AI-powered context-aware Chrome extension for cybersecurity threat detection and intelligent defense.",
