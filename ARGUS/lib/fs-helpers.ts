@@ -1,7 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 
-export const TMP_DIR = path.join(process.cwd(), 'tmp', 'campaign-images');
+// On Vercel serverless, process.cwd() is read-only — use /tmp instead
+const baseDir = process.env.VERCEL ? os.tmpdir() : path.join(process.cwd(), 'tmp');
+export const TMP_DIR = path.join(baseDir, 'campaign-images');
 
 export function ensureTmpDir() {
   if (!fs.existsSync(TMP_DIR)) {
