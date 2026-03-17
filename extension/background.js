@@ -7,7 +7,7 @@ console.log('[ARGUS BG] Background service worker STARTING...');
 console.log('[ARGUS BG] ========================================');
 
 const DEFAULT_BACKEND    = 'http://localhost:5000';
-const GEMINI_PROXY_URL   = 'http://localhost:3000/api'; // Next.js backend proxies Gemini
+const GEMINI_PROXY_URL   = 'https://argus-dashboard-emmitnnpp-jenithjain09-gmailcoms-projects.vercel.app/api'; // Next.js backend proxies Gemini
 const BLOCKED_PAGE       = chrome.runtime.getURL('blocked.html');
 const ANALYZING_PAGE     = chrome.runtime.getURL('analyzing.html');
 
@@ -33,7 +33,7 @@ async function getUserId() {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
-    const resp = await fetch('http://localhost:3000/api/auth/session', {
+    const resp = await fetch('https://argus-dashboard-emmitnnpp-jenithjain09-gmailcoms-projects.vercel.app/api/auth/session', {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -766,7 +766,7 @@ async function handleAnalyzeFrame(imageDataUrl, sendResponse) {
       const userId = await getUserId();
       const ingestController = new AbortController();
       const ingestTimeout = setTimeout(() => ingestController.abort(), 3000);
-      await fetch('http://localhost:3000/api/ingest-result', {
+      await fetch('https://argus-dashboard-emmitnnpp-jenithjain09-gmailcoms-projects.vercel.app/api/ingest-result', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ ...data, userId }),

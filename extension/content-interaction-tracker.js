@@ -1,7 +1,7 @@
 // Content script for tracking user interactions and sending to knowledge graph
 'use strict';
 
-const ARGUS_API = 'http://localhost:3000/api';
+const ARGUS_API = 'https://argus-dashboard-emmitnnpp-jenithjain09-gmailcoms-projects.vercel.app/api';
 let interactionSent = false;
 
 // Collect page interaction data
