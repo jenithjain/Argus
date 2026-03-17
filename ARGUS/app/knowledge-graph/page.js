@@ -56,10 +56,148 @@ export default function KnowledgeGraphPage() {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [graphDimensions, setGraphDimensions] = useState({ width: 800, height: 600 });
+  const [threatPatterns, setThreatPatterns] = useState([]);
+  const [clusterAnalysis, setClusterAnalysis] = useState(null);
   const graphRef = useRef();
   const graphContainerRef = useRef();
 
   const nodeTypes = Object.keys(COLORS);
+
+  // ──── PATTERN DETECTION & CLUSTERING ALGORITHM ────────────────────────────
+  const detectThreatPatterns = useCallback((data) => {
+    if (!data.nodes || data.nodes.length === 0) return;
+
+    const patterns = [];
+    const clusters = {};
+    let clusterId = 0;
+
+    // 1. Identify high-risk domain clusters (lookalike/phishing campaigns)
+    const domains = data.nodes.filter(n => n.label === 'Domain');
+    const riskDomains = domains.filter(d => (d.riskScore || 0) >= 50);
+    
+    if (riskDomains.length >= 2) {
+      patterns.push({
+        type: 'phishing_campaign',
+        severity: 'critical',
+        count: riskDomains.length,
+        description: `${riskDomains.length} high-risk domains detected - possible phishing campaign`,
+        domains: riskDomains.map(d => d.name).slice(0, 3),
+        color: '#EF4444',
+        icon: '🎯',
+        recommendation: 'Block these domains and add to phishing blacklist. Monitor for related lookalike domains.'
+      });
+      riskDomains.forEach(d => {
+        clusters[d.id] = { clusterId: clusterId, type: 'phishing', severity: 'critical', domainCount: riskDomains.length };
+      });
+      clusterId++;
+    }
+
+    // 2. Detect IP-to-Domain clusters (hosting multiple malicious sites)
+    const ips = data.nodes.filter(n => n.label === 'IP');
+    const ipNodeIds = new Set(ips.map(ip => ip.id));
+    
+    ips.forEach(ip => {
+      const connectedDomains = data.links
+        .filter(link => (link.source === ip.id || link.target === ip.id))
+        .map(link => link.source === ip.id ? link.target : link.source)
+        .map(id => data.nodes.find(n => n.id === id && n.label === 'Domain'))
+        .filter(Boolean);
+      
+      if (connectedDomains.length >= 3) {
+        patterns.push({
+          type: 'malicious_hosting',
+          severity: connectedDomains.some(d => (d.riskScore || 0) >= 70) ? 'critical' : 'high',
+          count: connectedDomains.length,
+          description: `IP ${ip.address} hosts ${connectedDomains.length} suspicious domains`,
+          domains: connectedDomains.map(d => d.name).slice(0, 2),
+          color: '#F97316',
+          icon: '🖥️',
+          recommendation: 'Consider blocking this IP address. Report to hosting provider for abuse.'
+        });
+        
+        clusters[ip.id] = { clusterId: clusterId, type: 'hosting', severity: 'high', domainCount: connectedDomains.length };
+        connectedDomains.forEach(d => {
+          if (!clusters[d.id]) clusters[d.id] = { clusterId: clusterId, type: 'hosting', severity: 'high', domainCount: connectedDomains.length };
+        });
+        clusterId++;
+      }
+    });
+
+    // 3. Detect interaction user clusters (attack targets)
+    const users = data.nodes.filter(n => n.label === 'User');
+    const userNodeIds = new Set(users.map(u => u.id));
+    
+    users.forEach(user => {
+      const interactedDomains = data.links
+        .filter(link => (link.source === user.id || link.target === user.id))
+        .map(link => link.source === user.id ? link.target : link.source)
+        .map(id => data.nodes.find(n => n.id === id));
+      
+      const riskInteractions = interactedDomains.filter(d => d && (d.riskScore || 0) >= 50);
+      if (riskInteractions.length >= 2) {
+        patterns.push({
+          type: 'targeted_user',
+          severity: 'high',
+          count: riskInteractions.length,
+          description: `User visited ${riskInteractions.length} high-risk domains - possible targeted attack`,
+          domains: riskInteractions.map(d => d.name).slice(0, 2),
+          color: '#A855F7',
+          icon: '🎯👤',
+          recommendation: 'Alert user about potential compromise. Recommend password reset and security audit.'
+        });
+        
+        clusters[user.id] = { clusterId: clusterId, type: 'targeted', severity: 'high', riskCount: riskInteractions.length };
+        clusterId++;
+      }
+    });
+
+    // 4. Detect registrar-based fraud networks
+    const registrars = data.nodes.filter(n => n.label === 'Registrar');
+    registrars.forEach(registrar => {
+      const registrarDomains = data.links
+        .filter(link => (link.source === registrar.id || link.target === registrar.id))
+        .map(link => link.source === registrar.id ? link.target : link.source)
+        .map(id => data.nodes.find(n => n.id === id && n.label === 'Domain'))
+        .filter(Boolean);
+      
+      const fraudDomains = registrarDomains.filter(d => (d.riskScore || 0) >= 60);
+      if (fraudDomains.length >= 2) {
+        patterns.push({
+          type: 'registration_abuse',
+          severity: 'medium',
+          count: fraudDomains.length,
+          description: `Registrar "${registrar.name}" has ${fraudDomains.length} fraudulent domains`,
+          domains: fraudDomains.map(d => d.name).slice(0, 2),
+          color: '#8B5CF6',
+          icon: '📋',
+          recommendation: 'Report this registrar for abuse. Monitor for additional fraudulent registrations.'
+        });
+        
+        clusters[registrar.id] = { clusterId: clusterId, type: 'registration', severity: 'medium', fraudCount: fraudDomains.length };
+        clusterId++;
+      }
+    });
+
+    // 5. Add cluster metadata to nodes
+    const enhancedNodes = data.nodes.map(node => ({
+      ...node,
+      clusterId: clusters[node.id]?.clusterId ?? -1,
+      clusterType: clusters[node.id]?.type ?? null,
+      clusterSeverity: clusters[node.id]?.severity ?? null,
+    }));
+
+    setThreatPatterns(patterns);
+    setClusterAnalysis({
+      totalClusters: clusterId,
+      patterns,
+      clusteredNodes: Object.keys(clusters).length,
+      totalNodes: data.nodes.length,
+      clusterDistribution: patterns.map(p => ({ type: p.type, count: p.count }))
+    });
+
+    // Return enhanced data with cluster info
+    return { ...data, nodes: enhancedNodes };
+  }, []);
 
   // Track theme changes
   useEffect(() => {
@@ -100,18 +238,21 @@ export default function KnowledgeGraphPage() {
     try {
       const response = await fetch('/api/graph-data');
       const data = await response.json();
-      setGraphData(data);
+      
+      // Apply pattern detection
+      const enhancedData = detectThreatPatterns(data);
+      setGraphData(enhancedData);
       
       // Apply filters
       if (selectedFilters.length === 0) {
-        setFilteredGraphData(data);
+        setFilteredGraphData(enhancedData);
       } else {
-        filterGraphData(data, selectedFilters);
+        filterGraphData(enhancedData, selectedFilters);
       }
     } catch (error) {
       console.error('Failed to fetch graph data:', error);
     }
-  }, [selectedFilters]);
+  }, [selectedFilters, detectThreatPatterns]);
 
   const filterGraphData = (data, filters) => {
     if (filters.length === 0) {
@@ -388,15 +529,16 @@ export default function KnowledgeGraphPage() {
           >
             {leftSidebarOpen && (
               <div className="p-4 space-y-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-semibold text-foreground">Graph Statistics</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-semibold text-foreground">📊 Graph Statistics</h2>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setLeftSidebarOpen(false)}
-                    className="h-7 w-7 p-0"
+                    className="h-9 w-9 p-0 hover:bg-destructive/20 hover:text-destructive transition-all rounded-lg"
+                    title="Collapse left panel"
                   >
-                    <X className="w-4 h-4" />
+                    <ChevronLeft className="w-5 h-5" />
                   </Button>
                 </div>
 
@@ -448,6 +590,22 @@ export default function KnowledgeGraphPage() {
                   </div>
                 </Card>
 
+                <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20 shadow-lg">
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-orange-500/10">
+                        <Brain className="w-5 h-5 text-orange-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Threat Clusters</p>
+                        <p className="text-2xl font-bold text-foreground">
+                          {clusterAnalysis?.totalClusters || 0}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
                 {/* Node Types Legend */}
                 <Card className="bg-card border-border mt-4">
                   <div className="p-4">
@@ -473,10 +631,13 @@ export default function KnowledgeGraphPage() {
           {!leftSidebarOpen && (
             <button
               onClick={() => setLeftSidebarOpen(true)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur-md border border-border border-l-0 rounded-r-lg p-2 shadow-lg hover:bg-accent transition-colors"
-              title="Open statistics panel"
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 group bg-gradient-to-r from-emerald-500/20 to-emerald-600/30 backdrop-blur-lg border-2 border-emerald-500/40 border-l-0 rounded-r-xl p-3 shadow-xl hover:shadow-2xl hover:from-emerald-500/30 hover:to-emerald-600/40 transition-all duration-200"
+              title="Expand Statistics Panel"
             >
-              <ChevronRight className="w-4 h-4 text-foreground" />
+              <div className="flex items-center gap-2">
+                <ChevronRight className="w-6 h-6 text-emerald-500 group-hover:translate-x-1 transition-transform" />
+                <span className="text-xs font-bold text-emerald-600 hidden group-hover:inline">STATS</span>
+              </div>
             </button>
           )}
 
@@ -513,7 +674,27 @@ export default function KnowledgeGraphPage() {
                     const size = (node.size || 5) * 2.5;
                     const fontSize = Math.max(12 / globalScale, 3);
                     
-                    // Draw glow for high-risk nodes
+                    // ──── CLUSTER VISUALIZATION ────
+                    // Draw cluster glow effect for clustered nodes
+                    if (node.clusterId !== -1) {
+                      const clusterColorMap = {
+                        'phishing': 'rgba(239, 68, 68, 0.25)',
+                        'hosting': 'rgba(249, 115, 22, 0.25)',
+                        'targeted': 'rgba(168, 85, 247, 0.25)',
+                        'registration': 'rgba(139, 92, 246, 0.25)',
+                        'default': 'rgba(100, 116, 139, 0.15)'
+                      };
+                      
+                      const glowColor = clusterColorMap[node.clusterType] || clusterColorMap.default;
+                      const glowRadius = size + (8 + Math.sin(Date.now() / 500) * 2);
+                      
+                      ctx.beginPath();
+                      ctx.arc(node.x, node.y, glowRadius, 0, 2 * Math.PI);
+                      ctx.fillStyle = glowColor;
+                      ctx.fill();
+                    }
+                    
+                    // Draw high-risk node halo
                     if (node.riskScore && node.riskScore >= 70) {
                       ctx.beginPath();
                       ctx.arc(node.x, node.y, size + 4, 0, 2 * Math.PI);
@@ -526,9 +707,19 @@ export default function KnowledgeGraphPage() {
                     ctx.fillStyle = String(node.color || '#6b7280');
                     ctx.fill();
                     
+                    // Highlight selected and clustered nodes
                     if (selectedNode && selectedNode.id === node.id) {
                       ctx.strokeStyle = '#22c55e';
                       ctx.lineWidth = 4 / globalScale;
+                      ctx.stroke();
+                    } else if (node.clusterId !== -1) {
+                      // Show cluster membership with border
+                      const severityColor = 
+                        node.clusterSeverity === 'critical' ? '#DC2626' :
+                        node.clusterSeverity === 'high' ? '#EA580C' :
+                        '#FBBF24';
+                      ctx.strokeStyle = severityColor;
+                      ctx.lineWidth = 2.5 / globalScale;
                       ctx.stroke();
                     }
                     
@@ -574,18 +765,19 @@ export default function KnowledgeGraphPage() {
           >
             <>
                 {/* Header inside sidebar */}
-                <div className="sticky top-0 z-10 bg-card border-b border-border p-3 flex items-center justify-between">
+                <div className="sticky top-0 z-10 bg-card border-b border-border p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
                   <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Network className="w-4 h-4 text-emerald-500" />
-                    Details Panel
+                    <Network className="w-5 h-5 text-cyan-500" />
+                    📋 Details Panel
                   </h2>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setRightSidebarOpen(false)}
-                    className="h-7 w-7 p-0"
+                    className="h-9 w-9 p-0 hover:bg-destructive/20 hover:text-destructive transition-all rounded-lg"
+                    title="Collapse details panel"
                   >
-                    <X className="w-4 h-4" />
+                    <ChevronRight className="w-5 h-5" />
                   </Button>
                 </div>
 
@@ -705,7 +897,126 @@ export default function KnowledgeGraphPage() {
                 </Card>
               )}
 
-              {/* Attack Campaigns */}
+              {/* ──── THREAT PATTERNS & CLUSTERING ANALYSIS ──── */}
+              <Card className="bg-gradient-to-br from-orange-500/10 to-red-600/5 border-orange-500/30 shadow-lg">
+                <div className="p-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-orange-500" />
+                    🎯 Threat Patterns & Clusters
+                  </h3>
+                  
+                  {clusterAnalysis && clusterAnalysis.patterns.length > 0 ? (
+                    <div className="space-y-3">
+                      {/* Cluster Statistics */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-card/60 rounded p-2">
+                          <p className="text-muted-foreground">Clusters</p>
+                          <p className="text-lg font-bold text-orange-500">{clusterAnalysis.totalClusters}</p>
+                        </div>
+                        <div className="bg-card/60 rounded p-2">
+                          <p className="text-muted-foreground">Risk Nodes</p>
+                          <p className="text-lg font-bold text-red-500">{clusterAnalysis.clusteredNodes}</p>
+                        </div>
+                      </div>
+
+                      {/* Individual Patterns */}
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {threatPatterns.map((pattern, idx) => (
+                          <div
+                            key={idx}
+                            className="rounded-lg p-3 border-l-4 transition-all hover:shadow-md"
+                            style={{
+                              borderLeftColor: pattern.color,
+                              backgroundColor: pattern.color + '08'
+                            }}
+                          >
+                            {/* Pattern Header with Icon */}
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">{pattern.icon}</span>
+                                <div>
+                                  <p className="text-xs font-semibold text-foreground capitalize">
+                                    {pattern.type.replace(/_/g, ' ')}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {pattern.count} involved node{pattern.count > 1 ? 's' : ''}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge 
+                                className="text-xs"
+                                style={{
+                                  backgroundColor: pattern.color,
+                                  color: '#fff'
+                                }}
+                              >
+                                {pattern.severity.toUpperCase()}
+                              </Badge>
+                            </div>
+
+                            {/* Description */}
+                            <p className="text-xs text-foreground mb-2 leading-tight">
+                              {pattern.description}
+                            </p>
+
+                            {/* Associated Domains */}
+                            {pattern.domains && pattern.domains.length > 0 && (
+                              <div className="mb-2 p-2 bg-card/40 rounded text-xs space-y-1">
+                                <p className="font-semibold text-muted-foreground">Domains:</p>
+                                {pattern.domains.map((domain, i) => (
+                                  <p key={i} className="text-foreground font-mono truncate pl-2">
+                                    • {domain}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Recommendation */}
+                            <div className="pt-2 border-t border-border/50">
+                              <p className="text-xs font-semibold text-green-600 mb-1">💡 Recommendation:</p>
+                              <p className="text-xs text-foreground leading-tight">
+                                {pattern.recommendation}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Cluster Legend */}
+                      <div className="pt-3 border-t border-border/50 mt-3">
+                        <p className="text-xs font-semibold text-foreground mb-2">Visual Cluster Codes:</p>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#EF4444'}}/>
+                            <span className="text-muted-foreground">Red glow = Phishing Campaign</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#F97316'}}/>
+                            <span className="text-muted-foreground">Orange glow = Malicious Hosting</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#A855F7'}}/>
+                            <span className="text-muted-foreground">Purple glow = Targeted Attack</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#8B5CF6'}}/>
+                            <span className="text-muted-foreground">Violet glow = Registration Abuse</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : clusterAnalysis ? (
+                    <p className="text-muted-foreground text-xs text-center py-3">
+                      No threat patterns detected yet. Data will update as interactions are logged.
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Analyzing patterns...</span>
+                    </div>
+                  )}
+                </div>
+              </Card>
               <Card className="bg-card border-border">
                 <div className="p-4">
                   <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -751,10 +1062,13 @@ export default function KnowledgeGraphPage() {
           {!rightSidebarOpen && (
             <button
               onClick={() => setRightSidebarOpen(true)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur-md border border-border border-r-0 rounded-l-lg p-2 shadow-lg hover:bg-accent transition-colors"
-              title="Open details panel"
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 group bg-gradient-to-l from-cyan-500/20 to-cyan-600/30 backdrop-blur-lg border-2 border-cyan-500/40 border-r-0 rounded-l-xl p-3 shadow-xl hover:shadow-2xl hover:from-cyan-500/30 hover:to-cyan-600/40 transition-all duration-200"
+              title="Expand Details Panel"
             >
-              <ChevronRight className="w-4 h-4 text-foreground rotate-180" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-cyan-600 hidden group-hover:inline">INFO</span>
+                <ChevronLeft className="w-6 h-6 text-cyan-500 group-hover:-translate-x-1 transition-transform" />
+              </div>
             </button>
           )}
         </div>
