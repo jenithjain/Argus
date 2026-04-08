@@ -1,532 +1,522 @@
 # ARGUS: Adaptive Risk and Generative Understanding System
 
-ARGUS is a multi-module cyber defense platform focused on real-world, AI-era threats. It combines browser-side telemetry, AI-assisted threat analysis, deepfake frame inference, graph intelligence, and user-facing analytics into one integrated system.
 
-## Technical Tags
 
-`Next.js 16` `React 19` `NextAuth` `MongoDB` `Mongoose` `Neo4j` `Gemini API` `Flask` `PyTorch` `MTCNN` `OpenCV` `Manifest V3` `Threat Intelligence` `Prompt Injection Detection` `Deepfake Detection` `Explainable Security AI`
+**Government-Grade AI Cyber Defense Intelligence Platform**
 
-## 1) Vision and Scope
+`Next.js 16` `React 19` `NextAuth` `MongoDB` `Neo4j` `Gemini AI` `Flask` `PyTorch` `MTCNN` `Chrome Extension` `Manifest V3`
 
-ARGUS aims to detect and explain high-risk digital threats through a combined strategy:
+Real-Time Threat Detection | Deepfake Analysis | Knowledge Graph Intelligence | Explainable AI Security
 
-- URL threat classification
-- Email phishing analysis
-- Prompt-injection detection in AI chat interfaces
-- Real-time deepfake signal detection
-- Knowledge graph enrichment and campaign correlation
-- Dashboard-grade analytics for visibility and response
+---
 
-The platform is built for practical security workflows where detection quality and explainability both matter.
+## Overview
 
-## Core Features and Implementation Mapping
+ARGUS is a unified cyber intelligence platform designed for high-risk environments including Finance, Defense, External Affairs, and Public Administration. It monitors emails, URLs, communication streams, and video content in real-time to detect AI-driven threats, explain risk evidence, and recommend mitigation actions before escalation.
 
-### URL Threat Detection
+Unlike generic security tools, ARGUS delivers deep threat intelligence through multi-vector analysis with persistent graph-based memory. The platform combines browser-side telemetry, AI-assisted classification, real-time deepfake detection, and knowledge graph correlation into a single integrated defense system.
 
-- Performs lexical and context-based URL risk analysis.
-- Produces verdict, confidence score, reason, and signals.
-- Supports persistent analytics entries for dashboard visibility.
+---
 
-Implemented in:
+## The Problem
 
-- `extension/background.js`
-- `ARGUS/app/api/analyze-url/route.js`
-- `ARGUS/app/api/security-analytics/route.js`
+| Challenge | Impact |
+|-----------|--------|
+| AI-Generated Deception | Deepfakes, synthetic voices, and fabricated communications bypass traditional detection |
+| Fragmented Security Tools | Analysts juggle separate tools for email, URL, video, and behavioral analysis |
+| Generic Detection Systems | Standard solutions cannot explain why something is suspicious or provide evidence trails |
+| Coordinated Attack Campaigns | Individual threats are detected but campaign-level patterns go unnoticed |
+| Prompt Injection Attacks | AI assistants within organizations are vulnerable to instruction hijacking |
 
-### Email Phishing Detection
+## The Solution
 
-- Evaluates sender, subject, body, and suspicious patterns.
-- Combines AI and deterministic guardrails for explainable output.
-- Integrates with campaign intelligence and event logging routes.
+ARGUS provides an integrated, explainability-first defense platform:
 
-Implemented in:
+- **Multi-Vector Threat Detection** — Unified analysis of URLs, emails, video content, and AI prompts
+- **Real-Time Deepfake Analysis** — Frame-by-frame video forensics with face detection and temporal tracking
+- **Knowledge Graph Intelligence** — Neo4j-powered relationship mapping to correlate threats into campaigns
+- **Explainable AI Decisions** — Every detection includes evidence trails, confidence scores, and recommended actions
+- **Browser-Native Protection** — Chrome extension monitors browsing activity and blocks threats in real-time
 
-- `extension/background.js`
-- `ARGUS/app/api/analyze-email/route.js`
-- `ARGUS/app/api/email-logs/route.js`
+---
 
-### Prompt Injection Defense
+## Core Capabilities
 
-- Detects instruction override, jailbreak behavior, and prompt abuse patterns.
-- Returns threat type, score, confidence, action, and evidence.
-- Built for AI chatbot interaction surfaces.
+### Multi-Vector Threat Detection
 
-Implemented in:
+ARGUS monitors six distinct threat vectors through a unified detection engine:
 
-- `extension/content-prompt-injection.js`
-- `ARGUS/app/api/analyze-prompt/route.js`
+| Threat Vector | Detection Approach |
+|---------------|-------------------|
+| **Phishing Communications** | NLP models detect urgency language, authority abuse, and policy-inconsistent requests |
+| **Malicious URLs** | Domain reputation, lexical entropy, redirect chains, and infrastructure analysis |
+| **Deepfake Impersonation** | Face consistency analysis, temporal artifacts, and forensic video evaluation |
+| **Prompt Injection** | Defense policies inspect AI prompts for instruction hijacking and data exfiltration |
+| **Behavioral Anomalies** | User baselines highlight impossible travel, off-hours access, and privilege escalation |
+| **AI-Generated Deception** | Classifiers flag synthetic narratives, fabricated directives, and misinformation |
 
-### Real-Time Deepfake Analysis
+### Real-Time Deepfake Detection
 
-- Captures frames from active tabs via extension runtime.
-- Uses face-driven and forensic fallback analysis modes.
-- Adds temporal confidence tracking for stable decisions.
+The deepfake detection engine uses a dual-signal approach that works with or without visible faces:
 
-Implemented in:
+**Face-Based Analysis**
+- MTCNN face detection extracts facial regions from video frames
+- PyTorch neural network evaluates face authenticity
+- EfficientNet backbone provides robust feature extraction
 
-- `extension/background.js`
-- `backend/server.py`
-- `backend/core/deepfake_detection.py`
-- `backend/core/frame_analysis.py`
-- `ARGUS/app/api/ingest-result/route.js`
+**Forensic Frame Analysis**
+- Compression artifact detection identifies manipulation signatures
+- Temporal consistency tracking across consecutive frames
+- Rolling confidence averaging for stable verdicts
 
-### Graph Intelligence and Campaign Correlation
+**Output Signals**
+- Fake probability (0-100%)
+- Confidence level (REAL / FAKE / UNCERTAIN)
+- Stability score across frame sequence
+- Processing time metrics
 
-- Builds relationships between users, domains, interactions, and threat campaigns.
-- Supports campaign clustering and node-level explanation.
-- Bridges event-level detections to intelligence-level context.
+### Explainable AI Security
 
-Implemented in:
+Every threat detection includes four layers of explainability:
 
-- `ARGUS/app/api/graph-data/route.js`
-- `ARGUS/app/api/campaign-clusters/route.js`
-- `ARGUS/app/api/explain-node/route.js`
-- `ARGUS/app/api/user-domains/route.js`
+| Layer | Description |
+|-------|-------------|
+| **Why Suspicious** | Highlights abnormal patterns that violate policy, communication norms, or baselines |
+| **Evidence Trail** | Provides concrete indicators: suspicious headers, URL chains, model forensics, timeline context |
+| **Confidence Score** | Calibrated probability with model agreement levels for risk-based decisions |
+| **Recommended Action** | Suggests immediate actions: isolate, block, verify identity, trigger workflow, escalate to SOC |
 
-### Analytics and Explainability
+### Knowledge Graph Intelligence
 
-- Converts detections into operational dashboards and summaries.
-- Preserves severity, confidence, signals, and recommended action metadata.
-- Supports historical visibility and trend-based monitoring.
+Neo4j-powered relationship mapping connects individual detections into campaign-level intelligence:
 
-Implemented in:
+**Node Types**
+- Users, Domains, IP Addresses, Organizations, Threats, Attack Campaigns
 
-- `ARGUS/app/api/security-analytics/route.js`
-- `ARGUS/app/api/analytics/route.js`
-- `ARGUS/lib/models/SecurityAnalytics.js`
+**Relationship Tracking**
+- User visited domain patterns
+- Threat correlation across domains
+- Campaign clustering by shared infrastructure
+- Brand impersonation detection
 
-## 2) Repository Map
+**Campaign Detection**
+- Automatic clustering by shared IP, registrar, or target brand
+- Attack pattern recognition across multiple indicators
+- Threat actor attribution support
 
-From this folder (`argus`):
+### Browser Extension
 
-```text
-argus/
-	ARGUS/                     # Main Next.js platform (UI + APIs + auth + analytics)
-	backend/                   # Flask deepfake inference backend for extension frame analysis
-	chatbot/                   # Additional chatbot web app package and launcher
-	extension/                 # Browser extension (Manifest V3)
-	QUICK_FIX_TEST.md
-	TEST_EMAIL_LOGGING.md
-	report.html
+The Chrome extension (Manifest V3) provides real-time protection during browsing:
+
+**Active Monitoring**
+- Navigation event interception
+- Email interface scanning (Gmail, Outlook)
+- AI chat interface monitoring
+- Form submission tracking
+
+**Threat Response**
+- In-page warning overlays for suspicious content
+- Full-page blocks for malicious domains
+- Real-time deepfake analysis via popup controls
+- Backend connection status and configuration
+
+**User Interface**
+- Popup dashboard with threat module status
+- Configurable backend URL
+- Dark/light theme support
+- Session event tracking
+
+---
+
+## Department Coverage
+
+ARGUS is architected for high-risk public sector operations:
+
+| Department | Focus Areas | Use Cases |
+|------------|-------------|-----------|
+| **Ministry of Finance** | Budget systems, treasury portals, procurement | Invoice fraud, executive impersonation, payment-diversion phishing |
+| **Ministry of Defense** | Secure comms, command dashboards, classified endpoints | Deepfake command impersonation, privileged access anomalies, social engineering |
+| **External Affairs** | Diplomatic mailboxes, mission tools, public communications | Deception campaigns, spoofed diplomatic requests, manipulated cross-border content |
+| **Public Administration** | e-Governance portals, identity systems, inter-department platforms | Citizen-service abuse, credential misuse, insider anomalies |
+
+---
+
+## System Architecture
+
+### High-Level Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     BROWSER EXTENSION                           │
+│  Manifest V3 | Service Worker | Content Scripts | Popup UI     │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │     URL      │ │    Email     │ │   Deepfake   │            │
+│  │   Monitor    │ │   Scanner    │ │   Capture    │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    ARGUS WEB PLATFORM                           │
+│  Next.js 16 + React 19 + NextAuth + Tailwind CSS               │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │  Dashboard   │ │  Knowledge   │ │  Analytics   │            │
+│  │   & Alerts   │ │    Graph     │ │   Reports    │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      API & AI LAYER                             │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │  URL/Email   │ │   Prompt     │ │   Gemini     │            │
+│  │  Analysis    │ │  Injection   │ │ Explanation  │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+            ┌─────────────────┼─────────────────┐
+            ▼                 ▼                 ▼
+┌───────────────────┐ ┌───────────────┐ ┌───────────────┐
+│   FLASK BACKEND   │ │    MongoDB    │ │     Neo4j     │
+│  ┌─────────────┐  │ │               │ │               │
+│  │   MTCNN     │  │ │  Analytics    │ │   Knowledge   │
+│  │  Detection  │  │ │  Threat Logs  │ │     Graph     │
+│  │  PyTorch    │  │ │  User Data    │ │   Campaigns   │
+│  │  Forensics  │  │ │               │ │               │
+│  └─────────────┘  │ │               │ │               │
+└───────────────────┘ └───────────────┘ └───────────────┘
 ```
 
-Sibling service in workspace root:
+### Data Flow
 
-```text
-hf_deepfake/                 # Hugging Face Space-compatible deepfake API service
-```
+1. **Browser Capture** — Extension monitors navigation, emails, video content, and AI chats
+2. **API Analysis** — Next.js routes process threats with Gemini AI classification
+3. **Deepfake Processing** — Flask backend performs frame-level video forensics
+4. **Storage** — MongoDB stores analytics and logs; Neo4j builds relationship graph
+5. **Visualization** — Dashboard displays real-time alerts, graphs, and trend analysis
 
-## 3) Technology Stack
+---
 
-### Main web platform (`ARGUS`)
+## Technology Stack
 
-- Next.js 16 (App Router)
-- React 19
-- NextAuth
-- MongoDB + Mongoose
-- Neo4j driver
-- Gemini API (`@google/generative-ai`)
-- Tailwind CSS + Radix UI + chart/graph libs
+### Frontend Platform
 
-### Extension (`extension`)
+| Component | Technology |
+|-----------|------------|
+| Framework | Next.js 16.1.6 (App Router) |
+| UI Library | React 19.2.0 |
+| Styling | TailwindCSS 4.2.1 |
+| Components | Radix UI (Avatar, Dialog, Dropdown, Tabs, Popover) |
+| State | Zustand 5.0.8 |
+| Visualization | React Force Graph 2D/3D, ReactFlow 11.11.4, Recharts 2.15.4 |
+| 3D Rendering | Three.js 0.180.0, React Three Fiber |
+| Animation | Framer Motion 12.23.24, GSAP 3.13.0 |
 
-- Manifest V3
-- Background service worker
-- Content scripts and overlay interfaces
-- Popup control center
+### Backend Services
 
-### Python backend (`backend`)
+| Component | Technology |
+|-----------|------------|
+| Web API | Next.js API Routes |
+| Authentication | NextAuth 4.24.13, bcryptjs |
+| AI Classification | Google Generative AI 0.24.1 (Gemini) |
+| Deepfake Detection | Flask 2.0.0+, PyTorch 1.9.0+, MTCNN |
+| Computer Vision | OpenCV 4.5.3+, Pillow 10.4.0, albumentations |
 
-- Flask + Flask-CORS
-- PyTorch + torchvision
-- facenet-pytorch (MTCNN)
-- OpenCV + PIL + numpy
-- Forensic + temporal scoring pipeline
+### Data Layer
 
-### Hugging Face service (`hf_deepfake`)
+| Component | Technology |
+|-----------|------------|
+| Primary Database | MongoDB 9.0.0 (Mongoose) |
+| Graph Database | Neo4j 6.0.1 |
+| Domain Enrichment | WHOIS (whois-json 2.0.4), GeoIP (geoip-lite 1.4.10) |
 
-- Docker-based API deployment for `/analyze`, `/health`, `/reset`
+### Browser Extension
 
-## 4) System Architecture
+| Component | Technology |
+|-----------|------------|
+| Manifest | Manifest V3 |
+| Runtime | Service Worker + Content Scripts |
+| Permissions | storage, tabs, scripting, webNavigation, webRequest, notifications |
 
-At a high level:
+---
 
-1. Extension and web clients send threat context and telemetry.
-2. Next.js API routes run classification, enrichment, and persistence logic.
-3. Python backend processes video frames for deepfake probability and temporal consistency.
-4. MongoDB stores analytics/history; Neo4j supports graph-based relationship intelligence.
-5. Dashboard pages render analysis results and trends for users.
+## Key Features
 
-Core runtime split:
+### Live Dashboard
 
-- Browser-facing control: `extension/*`
-- Application and APIs: `ARGUS/app/*`, `ARGUS/app/api/*`
-- ML inference service: `backend/server.py`, `backend/core/*`
+The security dashboard provides real-time visibility into threat activity:
 
-## 5) Module Deep Dive
+- **Server-Sent Events** — Live detection results stream to connected dashboards
+- **Probability History** — Rolling visualization of deepfake confidence over time
+- **Risk Distribution** — Breakdown of safe, low, medium, high, and critical detections
+- **Timeline Analysis** — Daily aggregation of interactions and threats
+- **Top Risky Domains** — Ranked list of suspicious domains by risk score
 
-### A) ARGUS platform (`ARGUS`)
+### Security Analytics
 
-Main app areas:
+Comprehensive analytics across all detection types:
 
-- Landing and product pages
-- Login/auth pages
-- Dashboard and analytics pages
-- Knowledge graph visualization pages
-- Assistant and profile pages
+- Total interactions and unique domains tracked
+- Threats detected with severity breakdown
+- Active campaign identification
+- Brand impersonation attempts
+- Historical trend monitoring
 
-Important app paths:
+### Domain Enrichment
 
-- `ARGUS/app/page.js`
-- `ARGUS/app/dashboard/*`
-- `ARGUS/app/analytics/*`
-- `ARGUS/app/knowledge-graph/*`
-- `ARGUS/app/profile/*`
+Automatic enrichment for analyzed domains:
 
-Operational scripts:
+- **WHOIS Data** — Domain age, registrar, creation/expiration dates
+- **DNS Records** — IP addresses, nameservers
+- **Geolocation** — Country, region, city, coordinates
+- **Hosting Provider** — Infrastructure identification
+- **Brand Impersonation** — Fuzzy matching against known brands
+- **Risk Scoring** — Composite score based on multiple factors
+
+### Data Anonymization
+
+Five-layer anonymization for privacy-compliant graph storage:
+
+1. **DROP** — Remove PII fields (email, name, password, content)
+2. **HASH** — SHA-256 hash of IPs, domains, device IDs
+3. **BUCKET** — Timestamp bucketing, geolocation generalization
+4. **KEEP** — Preserve threat metadata (verdict, severity, source)
+5. **ADD** — Synthetic IDs, anonymization flags, retention metadata
+
+### Cryptographic Integrity
+
+Merkle tree implementation for detection audit trails:
+
+- Tamper-proof event logging
+- Verifiable threat history
+- Integrity verification for compliance
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 20+ and npm
+- Python 3.9+
+- MongoDB (local or Atlas)
+- Neo4j (optional, for graph features)
+- Google Gemini API key
+
+### 1. Start ARGUS Web Platform
 
 ```bash
-cd ARGUS
+cd argus/ARGUS
 npm install
 npm run dev
-npm run build
-npm run start
-npm run lint
+```
+
+Access at: `http://localhost:3000`
+
+### 2. Start Deepfake Backend
+
+```bash
+cd argus/backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate (Windows)
+venv\Scripts\activate
+
+# Activate (macOS/Linux)
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run server
+python server.py
+```
+
+Access at: `http://localhost:5000`
+
+### 3. Load Browser Extension
+
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" (toggle in top-right)
+3. Click "Load unpacked"
+4. Select the `argus/extension` directory
+5. Click extension icon and verify backend URL is `http://localhost:5000`
+
+### 4. Initialize Knowledge Graph (Optional)
+
+```bash
+cd argus/ARGUS
 npm run init-graph
 npm run test-graph
-npm run diagnose
 ```
 
-### B) Browser extension (`extension`)
+---
 
-Primary files:
+## Environment Configuration
 
-- `manifest.json` - permissions and entry points
-- `background.js` - central event/router runtime
-- `content.js` - in-page analysis bootstrap
-- `content-interaction-tracker.js` - browsing interaction signals
-- `content-prompt-injection.js` - prompt-injection client signals
-- `popup.html`, `popup.js`, `popup.css` - operator interface
-- `overlay.html`, `overlay-script.js`, `overlay.css` - in-page overlays
-- `blocked.html`, `blocked-script.js` - block experience
-- `analyzing.html`, `analyzing-script.js` - in-progress analysis UI
-
-Core extension behavior:
-
-- Monitors navigation events and suspicious patterns
-- Sends URL/email/prompt/deepfake context to backend APIs
-- Displays threat posture in popup and overlays
-- Supports local backend URL configuration
-
-### C) Deepfake inference backend (`backend`)
-
-Entry point:
-
-- `backend/server.py`
-
-Core pipeline modules:
-
-- `backend/core/deepfake_detection.py`
-- `backend/core/frame_analysis.py`
-- `backend/core/face_detection.py`
-- `backend/core/model.py`
-
-Processing strategy:
-
-- Face detection + face model score when face exists
-- Frame-level forensic analysis always available
-- Temporal tracker for stable confidence output over consecutive frames
-- Health/reset/stats endpoints for observability and control
-
-### D) Chatbot module (`chatbot`)
-
-Structure:
-
-- `chatbot/package.json` (launcher wrapper)
-- `chatbot/chatbot/*` (nested Next.js app)
-
-Common commands:
-
-```bash
-cd chatbot
-npm install
-npm run install:app
-npm run dev
-```
-
-### E) Hugging Face deepfake service (`../hf_deepfake`)
-
-Designed for hosted inference compatibility with extension backend integrations.
-
-Expected endpoints:
-
-- `GET /`
-- `GET /health`
-- `POST /analyze`
-- `POST /reset`
-
-## 6) API Reference (Current Routes)
-
-Routes below are based on current files in `ARGUS/app/api`.
-
-### Analysis and detection
-
-- `/api/analyze-url`
-- `/api/analyze-email`
-- `/api/analyze-prompt`
-- `/api/ingest-result`
-- `/api/security-analytics`
-- `/api/email-logs`
-- `/api/analytics`
-
-### Graph and campaign intelligence
-
-- `/api/graph-data`
-- `/api/campaign-clusters`
-- `/api/user-domains`
-- `/api/explain-node`
-- `/api/reset-graph`
-- `/api/merkle-tree`
-
-### Workflow and profile
-
-- `/api/workflows/list`
-- `/api/workflows/save`
-- `/api/user/profile`
-
-### Utility and testing
-
-- `/api/anonymize-event`
-- `/api/test-db`
-- `/api/tmp-images/[filename]`
-
-### Auth
-
-- `/api/auth/[...nextauth]`
-
-## 7) Data Models and Storage
-
-MongoDB models currently present in `ARGUS/lib/models`:
-
-- `User`
-- `SecurityAnalytics`
-- `AnalyticsData`
-- `ThreatLog`
-- `InteractionLog`
-- `EnrichmentLog`
-- `Campaign`
-- `CampaignLog`
-- `PastWorkflow`
-- `Tool`
-
-Storage responsibilities:
-
-- Detection and analytics history
-- Interaction and enrichment events
-- Campaign-level aggregation
-- Workflow persistence
-
-Neo4j is used as an additional intelligence layer for relationship-driven graph queries and campaign clustering.
-
-## 8) Environment Variables
-
-Create `ARGUS/.env.local`.
+Create `ARGUS/.env.local`:
 
 ```env
-# NextAuth
-NEXTAUTH_SECRET=replace_with_a_long_random_secret
+# Authentication
+NEXTAUTH_SECRET=your_long_random_secret_here
 NEXTAUTH_URL=http://localhost:3000
 
-# Optional Google OAuth provider
+# Google OAuth (optional)
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # MongoDB
 MONGODB_URI=mongodb://127.0.0.1:27017/argus
 
-# Neo4j (optional but needed for full graph features)
+# Neo4j Graph Database
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=your_neo4j_password
 NEO4J_DATABASE=neo4j
 
-# Gemini API
+# Gemini AI
 GEMINI_API_KEY=your_gemini_api_key
-
-# Optional fallback alias used in one route
-GOOGLE_GEMINI_API_KEY=your_gemini_api_key
 ```
 
-## 9) Local Setup and Run Guide
+---
 
-### Prerequisites
+## Repository Structure
 
-- Node.js 20+
-- npm
-- Python 3.9+
-- MongoDB
-- Optional Neo4j for graph features
+```
+argus/
+├── ARGUS/                      # Next.js web platform
+│   ├── app/                    # Pages and API routes
+│   │   ├── api/                # 20+ API endpoints
+│   │   ├── dashboard/          # Security dashboard
+│   │   ├── analytics/          # Analytics views
+│   │   ├── knowledge-graph/    # Graph visualization
+│   │   ├── assistant/          # AI assistant
+│   │   └── profile/            # User management
+│   ├── components/             # React components
+│   ├── lib/                    # Utilities and models
+│   │   ├── models/             # 10 MongoDB schemas
+│   │   ├── auth-options.js     # NextAuth config
+│   │   ├── mongodb.js          # Database connection
+│   │   ├── neo4j.js            # Graph driver
+│   │   ├── graph-builder.js    # Graph operations
+│   │   ├── domain-enrichment.js # WHOIS/DNS/GeoIP
+│   │   └── anonymizer.js       # PII protection
+│   └── scripts/                # Utility scripts
+│
+├── backend/                    # Flask deepfake service
+│   ├── server.py               # Flask application
+│   ├── core/
+│   │   ├── deepfake_detection.py
+│   │   ├── face_detection.py
+│   │   ├── frame_analysis.py
+│   │   └── model.py
+│   └── requirements.txt
+│
+├── extension/                  # Chrome extension
+│   ├── manifest.json           # Manifest V3 config
+│   ├── background.js           # Service worker
+│   ├── content.js              # Primary content script
+│   ├── content-interaction-tracker.js
+│   ├── content-prompt-injection.js
+│   ├── popup.html/js/css       # Extension popup
+│   ├── overlay.html/js/css     # In-page warnings
+│   ├── blocked.html            # Block page
+│   └── analyzing.html          # Analysis progress
+│
+└── chatbot/                    # Optional chatbot module
+```
 
-### Step 1: Run ARGUS web app
+---
+
+## Data Models
+
+ARGUS uses 10 MongoDB collections for operational data:
+
+| Model | Purpose |
+|-------|---------|
+| **User** | Authentication, profile, KYC data, API keys |
+| **SecurityAnalytics** | Detection events with verdicts, scores, signals |
+| **ThreatLog** | Threat identification and action tracking |
+| **InteractionLog** | User browsing interactions and risk indicators |
+| **EnrichmentLog** | WHOIS, DNS, GeoIP, and brand impersonation data |
+| **CampaignLog** | Attack campaign clustering and correlation |
+| **Campaign** | Workflow state and execution logs |
+| **AnalyticsData** | Time-series analytics |
+| **PastWorkflow** | Completed workflow history |
+| **Tool** | AI agent capability registry |
+
+---
+
+## Development Commands
 
 ```bash
-cd argus/ARGUS
-npm install
-npm run dev
+# ARGUS Platform
+cd ARGUS
+npm run dev          # Development server
+npm run build        # Production build
+npm run start        # Production server
+npm run lint         # ESLint
+npm run init-graph   # Initialize Neo4j schema
+npm run test-graph   # Test graph connectivity
+npm run diagnose     # Diagnose graph issues
+
+# Backend Service
+cd backend
+python server.py     # Start Flask server
 ```
 
-Default: `http://localhost:3000`
+---
 
-### Step 2: Run deepfake backend
+## Security Considerations
 
-```bash
-cd argus/backend
-python -m venv .venv
-# Windows
-.\.venv\Scripts\activate
-# macOS/Linux
-# source .venv/bin/activate
-pip install -r requirements.txt
-python server.py
-```
+### Production Hardening
 
-Default: `http://localhost:5000`
+- Remove test endpoints (`/api/test-db`, `/api/reset-graph`)
+- Implement strict CORS policies
+- Enable HTTPS for all services
+- Add rate limiting to public endpoints
+- Rotate API keys regularly
+- Implement centralized logging and monitoring
 
-### Step 3: Optional chatbot app
+### Authentication
 
-```bash
-cd argus/chatbot
-npm install
-npm run install:app
-npm run dev
-```
+- bcryptjs password hashing (10 salt rounds)
+- JWT session tokens (30-day expiry)
+- NextAuth middleware protection
+- Google OAuth integration support
 
-## 10) Extension Setup
+---
 
-1. Open browser extensions page.
-2. Enable Developer mode.
-3. Click Load unpacked.
-4. Select `argus/extension`.
-5. Open extension popup and verify backend URL points to `http://localhost:5000`.
+## Troubleshooting
 
-Recommended validation after load:
-
-- Confirm popup loads module states.
-- Confirm background worker has no startup errors.
-- Confirm threat page overlays render.
-
-## 11) Threat Analysis Workflows
-
-### URL analysis
-
-- Extension observes navigation and lexical risk indicators.
-- URL context sent to web API.
-- API computes verdict/score/reason and can persist analytics.
-
-### Email analysis
-
-- Email content and metadata signals are captured.
-- API evaluates phishing/scam patterns with explainable output.
-
-### Prompt-injection analysis
-
-- Prompt text and context are evaluated for jailbreak/override indicators.
-- Results include threat type, score, evidence, and action guidance.
-
-### Deepfake analysis
-
-- Extension captures frame snapshots from active tabs.
-- Flask backend returns fake probability + temporal confidence.
-- ARGUS ingest routes can store and stream outcome signals.
-
-## 12) Development and Testing
-
-### Useful commands
-
-```bash
-cd argus/ARGUS
-npm run lint
-npm run diagnose
-npm run test-graph
-```
-
-### Manual checks
-
-- Login session health in web app
-- URL/email/prompt route response validity
-- Deepfake backend `/health`, `/analyze`, `/stats`
-- Dashboard data refresh and graph pages
-- Extension popup + overlay rendering
-
-## 13) Deployment Notes
-
-### Local-first design
-
-Current setup is optimized for local development and testing with localhost services.
-
-### Hugging Face deepfake serving
-
-For hosted deepfake inference, deploy `hf_deepfake` and update extension backend URL to your Space endpoint.
-
-### Production hardening checklist
-
-- Restrict CORS to trusted origins
-- Remove or protect destructive/test endpoints
-- Enforce strict auth on write routes
-- Rate-limit sensitive APIs by identity and IP
-- Add centralized logging and monitoring
-
-## 14) Security Considerations
-
-ARGUS contains advanced security logic but should still be treated as an evolving platform.
-
-Before production usage:
-
-- Audit auth enforcement per API route
-- Ensure no client-trusted identity fallback in writes
-- Protect graph reset and test endpoints
-- Rotate and secure API secrets
-- Apply strict extension permission review
-
-## 15) Troubleshooting
-
-### Web app does not start
+### Web App Issues
 
 - Re-run `npm install` inside `ARGUS`
-- Verify `.env.local` exists
+- Verify `.env.local` exists with all required variables
 - Check MongoDB connectivity
 
-### Extension shows no detections
+### Extension Issues
 
-- Check backend URL in popup settings
+- Verify backend URL in popup settings
 - Confirm `backend/server.py` is running
-- Inspect extension service worker logs
+- Check service worker logs in `chrome://extensions/`
 
-### Deepfake endpoint errors
+### Deepfake Backend Issues
 
-- Confirm Python env has all packages from `requirements.txt`
-- Verify model files are present and compatible
-- Check `/health` response first
+- Confirm Python environment has all packages from `requirements.txt`
+- Verify model files are present
+- Test `/health` endpoint first
 
-### Graph features not working
+### Graph Features
 
-- Validate Neo4j credentials
-- Run `npm run init-graph`
-- Run `npm run diagnose`
+- Validate Neo4j credentials in `.env.local`
+- Run `npm run init-graph` to create schema
+- Run `npm run diagnose` for detailed diagnostics
 
-## 16) Credits
+---
 
-All major architecture, orchestration, implementation direction, and product shaping for this ARGUS project are credited to you, including:
+## License
 
-- Platform concept and threat-defense strategy
-- Multi-module integration across web app, extension, backend, and graph workflows
-- Security analytics and explainability direction
-- Deepfake + AI detection integration strategy
-- Product documentation and presentation direction
-
-If you want, I can also generate a second README variant optimized for:
-
-- Hackathon submission style
-- Portfolio/recruiter style
-- Government/enterprise proposal style
-
+This project is proprietary software.
