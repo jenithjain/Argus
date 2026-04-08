@@ -1,12 +1,27 @@
-# ARGUS: Adaptive Risk and Generative Understanding System
+<div align="center">
 
+# ARGUS
 
+### Adaptive Risk and Generative Understanding System
 
-**Government-Grade AI Cyber Defense Intelligence Platform**
+*Government-Grade AI Cyber Defense Intelligence Platform*
 
-`Next.js 16` `React 19` `NextAuth` `MongoDB` `Neo4j` `Gemini AI` `Flask` `PyTorch` `MTCNN` `Chrome Extension` `Manifest V3`
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev/)
+[![Flask](https://img.shields.io/badge/Flask-2.0-000000?style=flat-square&logo=flask)](https://flask.palletsprojects.com/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.9+-EE4C2C?style=flat-square&logo=pytorch)](https://pytorch.org/)
+[![Gemini](https://img.shields.io/badge/Gemini-AI-4285F4?style=flat-square&logo=google)](https://ai.google.dev/)
+[![Neo4j](https://img.shields.io/badge/Neo4j-Graph-008CC1?style=flat-square&logo=neo4j)](https://neo4j.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
+[![Deployed](https://img.shields.io/badge/Deployed-Vercel-black?style=flat-square&logo=vercel)](https://vercel.com/)
 
-Real-Time Threat Detection | Deepfake Analysis | Knowledge Graph Intelligence | Explainable AI Security
+**Real-Time Threat Detection | Deepfake Analysis | Knowledge Graph Intelligence | Explainable AI Security**
+
+**Live Demo:** https://argus-dashboard-tan.vercel.app/
+
+[Features](#core-capabilities) | [Quick Start](#quick-start) | [Architecture](#system-architecture) | [Tech Stack](#technology-stack)
+
+</div>
 
 ---
 
